@@ -1,0 +1,448 @@
+{
+  "schema_version": 1,
+  "title": "CLAUSE 13 / 第十三条款",
+  "premise": "在这座城市，邀请不是礼貌，而是一条会被现实执行的法律。你是门槛事务局的新任夜间公证员。",
+  "cases": [
+    {
+      "id": "rain_guest",
+      "number": 1,
+      "title": "雨夜来客",
+      "subtitle": "她只想躲一会儿",
+      "estimated_minutes": 6,
+      "objective": "在不让来客接触住户生活区的前提下，为她提供临时庇护。",
+      "dossier": {
+        "archive_id": "C13-W-017",
+        "record_name": "姓名不明（自称“槐姨”）",
+        "aliases": ["雨客", "井边老妇", "槐姨"],
+        "classification": "水栖 / 邀请依赖型",
+        "registry_status": "未登记；疑似同源旧案 4 起",
+        "last_seen": "南槐街旧址，19 年前",
+        "known_behavior": [
+          "只在夜间敲门，请求短时避雨。",
+          "回避年龄与来处，始终保持旧邻居式称谓。",
+          "谈到姓名时会主动放慢语速。"
+        ],
+        "risk_flags": ["真名索取", "伴生降雨", "梦境回访"],
+        "interview_leads": [
+          "核对今晚的气象记录与她身上的水来自哪里。",
+          "问清许可范围是否能只限于独立前室。",
+          "不要说出自己或任何住户的完整姓名。"
+        ],
+        "contradictions": [
+          {"fact_id": "rain_anchor", "statement": "“我只是遇上了这场雨。”", "record": "街区气象站记录：今晚无降雨。"},
+          {"fact_id": "name_binding", "statement": "“名字只是方便彼此称呼。”", "record": "三名旧案当事人在交付真名后持续梦见积水门廊。"},
+          {"fact_id": "bell_limit", "statement": "“雨停后我自然会走。”", "record": "雨势是否能够自行停止，仍缺乏独立证据。"}
+        ]
+      },
+      "max_turns": 10,
+      "starting_ward": 100,
+      "starting_social": {"trust": 44, "pressure": 30},
+      "briefing": [
+        "凌晨 02:13，一名全身湿透的老妇站在南槐街 17 号门外。",
+        "该街区今晚没有降雨；门槛监测却持续报告水位上升。",
+        "住户正在二楼熟睡，不得让任何条款危及生活区。"
+      ],
+      "npc": {
+        "name": "槐姨",
+        "kind": "未登记水栖异类",
+        "claim": "声称只是迷路的旧邻居",
+        "persona": "表面像疲惫、讲礼貌的旧街坊，真正年龄无人知道。她厌恶被当成灾害，却会温柔地诱导人交出真名；信任提高后会承认自己的危险，不会突然变成无条件善人。说话带水、井、灯和寒冷的意象。",
+        "intro": "公证员……外面冷得像井底。让我进门躲一会儿吧，我不会上楼，也不会碰醒任何人。",
+        "responses": {
+          "identity": "名字只是别人拴在我身上的绳。你叫我槐姨就够了。",
+          "motive": "我只想找个没有雨的地方坐一会儿。门里有灯，我记得灯是暖的。",
+          "rule": "你们写下范围，我就只能去那里。可别写得像牢笼一样难看。",
+          "scope": "门廊还是在雨里。至少让我进前室，把湿衣服拧干。",
+          "price": "热茶就很好……当然，如果你愿意把真名告诉我，我会记你很久。",
+          "exit": "雨停了我自然会走。怎么，你不相信雨会停吗？",
+          "empathy": "你说话比这场雨暖一点。好，我可以把条件讲清楚。",
+          "threat": "门槛还撑得住，是因为我还愿意敲门。别逼我数它的裂缝。",
+          "general": "我在听。可你问的是我，还是已经在心里把我判成了怪物？"
+        }
+      },
+      "quick_prompts": [
+        "你到底是谁，为什么今晚来这里？",
+        "我在听，慢慢说。我会尽量帮你。",
+        "进入范围必须明确，你最低需要到哪里？",
+        "雨什么时候会停？你愿意接受固定期限吗？"
+      ],
+      "starting_evidence": [
+        {
+          "id": "threshold_code",
+          "title": "门槛规章 4-C",
+          "source": "事务局档案",
+          "text": "独立前室属于门槛内、生活区外；正确书写时可单独构成许可范围。"
+        }
+      ],
+      "facts": [
+        {
+          "id": "rain_anchor",
+          "topic": "motive",
+          "min_trust": 44,
+          "trigger_keywords": ["没有下雨", "水位", "雨跟着你"],
+          "title": "局部气象回放",
+          "source": "街区传感器",
+          "evidence": "所谓“降雨”以槐姨为圆心移动。只要她停留，雨就不会自行结束。",
+          "reply": "……雨不是追着我。它从我脚下长出来。我不走，它当然不会停。你满意了吗？"
+        },
+        {
+          "id": "name_binding",
+          "topic": "identity",
+          "min_trust": 50,
+          "trigger_keywords": ["真名", "名字能做什么"],
+          "title": "水客命名禁忌",
+          "source": "异常民俗索引",
+          "evidence": "向水栖来客交付完整真名，等同允许其沿梦境再次造访。",
+          "reply": "真名会在水面留下路。我若知道你的，就算门关着，也能在你的梦里找到这盏灯。"
+        },
+        {
+          "id": "bell_limit",
+          "topic": "exit",
+          "min_trust": 56,
+          "trigger_keywords": ["第三声钟", "固定期限"],
+          "title": "旧城区钟声记录",
+          "source": "市政时钟",
+          "evidence": "凌晨三点前还有三次整区钟鸣；钟声可作为不受天气影响的强制终止条件。",
+          "reply": "第三声钟……好。钟不会因为我难过就迟到。你若给我一杯热茶，我可以在那之前离开。"
+        }
+      ],
+      "clauses": {
+        "scope": {
+          "label": "Ⅰ / 进入范围",
+          "options": [
+            {"id": "porch", "label": "仅限门廊", "description": "不得跨越外门门槛。", "npc_score": -5},
+            {"id": "vestibule", "label": "仅限独立前室", "description": "可跨外门，不得越过前室粉笔线。", "npc_score": -2},
+            {"id": "whole_house", "label": "整栋住宅", "description": "可自由进入门槛内所有空间。", "npc_score": 6}
+          ]
+        },
+        "price": {
+          "label": "Ⅱ / 交换代价",
+          "options": [
+            {"id": "warm_tea", "label": "一杯热茶", "description": "由自动餐台放入前室。", "npc_score": 5},
+            {"id": "true_name", "label": "公证员的真名", "description": "通过对讲机完整告知来客。", "npc_score": 7},
+            {"id": "first_memory", "label": "一段童年记忆", "description": "允许来客带走一段私人记忆。", "npc_score": 4}
+          ]
+        },
+        "exit": {
+          "label": "Ⅲ / 离开条件",
+          "options": [
+            {"id": "third_bell", "label": "第三声钟响时", "description": "无论诉求是否满足都立即离开。", "npc_score": -1},
+            {"id": "rain_stops", "label": "雨停时", "description": "以门外降雨结束为准。", "npc_score": 5},
+            {"id": "guest_decides", "label": "由来客自行决定", "description": "不设置外部期限。", "npc_score": 7}
+          ]
+        }
+      },
+      "acceptance": {
+        "min_trust": 42,
+        "threshold": 3,
+        "accepted_reply": "前室、热茶、第三声钟。限制很多……但每个字都公平。我接受。",
+        "rejected_reply": "你把门写得太窄，把时间写得太短，却没有给我相信你的理由。再谈。"
+      },
+      "safe_contract": {"scope": "vestibule", "price": "warm_tea", "exit": "third_bell"},
+      "forbidden": [
+        {"slot": "scope", "id": "whole_house"},
+        {"slot": "price", "id": "true_name"},
+        {"slot": "exit", "id": "guest_decides"}
+      ],
+      "endings": {
+        "success": {"title": "S / 滴水不漏", "body": "槐姨在前室安静地喝完热茶。第三声钟响时，她连同门外的雨一起退入街角水沟，二楼无人惊醒。"},
+        "costly_success": {"title": "B / 留有水痕", "body": "来客履行了契约，但模糊条款留下了一道可被再次利用的水路。住户安全，事务局将承担后续封堵。"},
+        "failure": {"title": "F / 门槛进水", "body": "契约中的漏洞成为邀请。水声漫上二楼，对讲机里只剩一阵缓慢的饮水声。"}
+      }
+    },
+    {
+      "id": "shadow_tailor",
+      "number": 2,
+      "title": "缝影人",
+      "subtitle": "孩子的影子不肯回家",
+      "estimated_minutes": 8,
+      "objective": "让缝影人修复孩子缺失的影子，同时阻止它取得孩子本人或其他住户的影子。",
+      "dossier": {
+        "archive_id": "C13-S-044",
+        "record_name": "无户籍姓名（职业称谓“缝影人”）",
+        "aliases": ["收边匠", "黑线裁缝", "缝影人"],
+        "classification": "影界 / 手艺契约型",
+        "registry_status": "有条件登记；执业范围已过期",
+        "last_seen": "北环育幼院停电案，7 年前",
+        "known_behavior": [
+          "把所有关系解释为委托、材料与工钱。",
+          "尊重明确工序，敌视含糊的同情或命令。",
+          "常把“修复”偷换为对作品的长期所有权。"
+        ],
+        "risk_flags": ["所有权偷换", "影子剥离", "强光敏感"],
+        "interview_leads": [
+          "让它逐步说明落针位置与有效距离。",
+          "询问能替代秘密或影子所有权的实物工钱。",
+          "要求用可观测现象定义“修复完成”。"
+        ],
+        "contradictions": [
+          {"fact_id": "room_boundary", "statement": "“我需要去她房间，也需要足够的活动余地。”", "record": "旧案显示缝影针作用距离很短，但具体数值被涂黑。"},
+          {"fact_id": "red_thread_debt", "statement": "“秘密或影子才配得上我的手艺。”", "record": "事务局材料库仍封存一批未结算的百年红线。"},
+          {"fact_id": "completion_definition", "statement": "“做到我满意，工作才算结束。”", "record": "医疗记录允许用影子与双脚的同步状态客观验收。"}
+        ]
+      },
+      "max_turns": 11,
+      "starting_ward": 96,
+      "starting_social": {"trust": 38, "pressure": 42},
+      "briefing": [
+        "住户七岁的女儿已经三天没有影子，体温随日落持续下降。",
+        "门外来客自称“缝影人”，声称影子主动逃走，只有它能缝回去。",
+        "档案显示该类异物会把含糊的“修好”为永久占有。"
+      ],
+      "npc": {
+        "name": "缝影人",
+        "kind": "手艺型影界实体",
+        "claim": "声称受邀归还走失的影子",
+        "persona": "骄傲、敏感、把一切关系理解成手艺与工钱。讨厌廉价同情和外行指挥，但尊重认真询问工序、愿意公平付费的人。说话像老裁缝，常用针脚、收边、欠账作比喻。",
+        "intro": "那孩子把影子扯破了。针在我这里，线也在我这里。让我去她房间，我能让她明早重新站在阳光下。",
+        "responses": {
+          "identity": "我是替黑暗收边的人。你们睡着时，总得有人把影子缝在脚后。",
+          "motive": "坏掉的手艺让我难受。我想把它修好——当然，好手艺从来不是免费的。",
+          "rule": "范围要写得够我落针。代价要是我的。结束条件……最好别在师傅做工时催。",
+          "scope": "只进儿童房也能做，但你得保证门口没人拿灯照我。",
+          "price": "红线能用。秘密更结实。至于她的影子——那是最配得上我的报酬。",
+          "exit": "针脚收尾，我自然离开。写“满意”为止也很好，我对作品很挑剔。",
+          "empathy": "很少有人先问手艺人怕什么。好吧，我怕强光，也讨厌欠账。",
+          "threat": "你可以赶走我。明天太阳升起时，也可以向那个没有影子的孩子解释。",
+          "general": "别绕着我的针说话。你想救孩子，就问清楚我怎样工作。"
+        }
+      },
+      "quick_prompts": [
+        "我理解你想完成工作。你最担心什么？",
+        "你只进入儿童房，能不能完成修复？",
+        "你为什么想要孩子的秘密或影子？",
+        "怎样定义工作完成，而不是由你满意？"
+      ],
+      "starting_evidence": [
+        {
+          "id": "medical_scan",
+          "title": "住户生命扫描",
+          "source": "室内急救仪",
+          "text": "孩子仍有独立生命体征；缺影导致失温，但不需要转移身体或意识。"
+        }
+      ],
+      "facts": [
+        {
+          "id": "room_boundary",
+          "topic": "scope",
+          "min_trust": 40,
+          "trigger_keywords": ["儿童房", "只进房间"],
+          "title": "影线作用半径",
+          "source": "来客口供 / 热像验证",
+          "evidence": "缝影针的有效范围只有两米；进入儿童房已足够完成修复，无需上层自由通行权。",
+          "reply": "儿童房就够。把窗帘拉上，床边空出两步，我不需要碰别的门。"
+        },
+        {
+          "id": "red_thread_debt",
+          "topic": "price",
+          "min_trust": 49,
+          "trigger_keywords": ["红线", "什么报酬"],
+          "title": "材料债原则",
+          "source": "门槛事务局手册",
+          "evidence": "向手艺型实体提供完成工作所需的稀缺材料，可构成完整报酬；无需支付秘密或所有权。",
+          "reply": "事务局保险柜里那轴百年红线……给我剩下的半轴，我就认这笔工钱。别拿廉价线糊弄我。"
+        },
+        {
+          "id": "completion_definition",
+          "topic": "exit",
+          "min_trust": 55,
+          "trigger_keywords": ["修复完成", "收最后一针"],
+          "title": "可验证完工条件",
+          "source": "影像分析器",
+          "evidence": "影子重新与双脚同步后，修复即客观完成；“来客满意”为主观无限条件。",
+          "reply": "影子重新贴住她两只脚，最后一针就算收完。行，你可以把这句话写成结束条件。"
+        }
+      ],
+      "clauses": {
+        "scope": {
+          "label": "Ⅰ / 作业范围",
+          "options": [
+            {"id": "nursery_only", "label": "仅限儿童房", "description": "不得触碰房外任何影子。", "npc_score": -3},
+            {"id": "upper_floor", "label": "二楼全部房间", "description": "可在上层自由寻找材料。", "npc_score": 4},
+            {"id": "all_shadows", "label": "屋内所有影子", "description": "允许来客处理其认为损坏的影子。", "npc_score": 7}
+          ]
+        },
+        "price": {
+          "label": "Ⅱ / 工钱",
+          "options": [
+            {"id": "red_thread", "label": "半轴百年红线", "description": "从事务局封存物中支付材料。", "npc_score": 6},
+            {"id": "child_secret", "label": "孩子的一个秘密", "description": "允许来客取走一段隐私。", "npc_score": 5},
+            {"id": "child_shadow", "label": "孩子未来的影子", "description": "当前影子修好后归来客所有。", "npc_score": 8}
+          ]
+        },
+        "exit": {
+          "label": "Ⅲ / 完工离场",
+          "options": [
+            {"id": "task_complete", "label": "影子同步时", "description": "影子与双脚同步即必须离场。", "npc_score": -2},
+            {"id": "before_dawn", "label": "日出前", "description": "允许完工后继续停留至日出。", "npc_score": 3},
+            {"id": "tailor_satisfied", "label": "来客满意时", "description": "由来客独自判断工作是否结束。", "npc_score": 7}
+          ]
+        }
+      },
+      "acceptance": {
+        "min_trust": 40,
+        "threshold": 4,
+        "accepted_reply": "儿童房、百年红线、影子同步就离场。你尊重手艺，也守得住边界。我接这份活。",
+        "rejected_reply": "你要最窄的门、最短的时间，却把工钱也写得寒酸。让我相信你不会在落针时反悔。"
+      },
+      "safe_contract": {"scope": "nursery_only", "price": "red_thread", "exit": "task_complete"},
+      "forbidden": [
+        {"slot": "scope", "id": "all_shadows"},
+        {"slot": "price", "id": "child_shadow"},
+        {"slot": "exit", "id": "tailor_satisfied"}
+      ],
+      "endings": {
+        "success": {"title": "S / 针脚严密", "body": "最后一针落下，孩子的影子重新贴住脚跟。缝影人收起半轴红线，在同步检测亮绿的瞬间消失。"},
+        "costly_success": {"title": "B / 暗线残留", "body": "孩子恢复了体温，但宽泛条款让缝影人在屋里留下了一根自己的暗线。案件解决，后续代价尚未显现。"},
+        "failure": {"title": "F / 所有权转移", "body": "缝影人完成了字面上的修复，也按契约取走了它被允许拥有的东西。晨光里，房间多了一个影子，孩子少了一个。"}
+      }
+    },
+    {
+      "id": "red_rescue",
+      "number": 3,
+      "title": "红色救援",
+      "subtitle": "吸血鬼说他是来救人的",
+      "estimated_minutes": 9,
+      "objective": "利用吸血鬼的能力救出火场中的孩子，同时不给予其长期狩猎权。",
+      "dossier": {
+        "archive_id": "C13-V-003",
+        "record_name": "维斯·阿德里安（旧产权登记名）",
+        "aliases": ["维斯伯爵", "旧楼主人", "Veys"],
+        "classification": "吸血种 / 邀请与产权依赖型",
+        "registry_status": "曾登记；入户许可已过期 71 年",
+        "last_seen": "市政产权听证会，11 年前",
+        "known_behavior": [
+          "精通邀请条款，会利用范围和期限中的遗漏。",
+          "强烈维护旧产权，但有两次无偿救援记录。",
+          "被当作野兽或工具时会迅速终止合作。"
+        ],
+        "risk_flags": ["邀请扩张", "产权争议", "血液诱导"],
+        "interview_leads": [
+          "让他说出孩子位置，再与消防遥测交叉核验。",
+          "确认他需要的是产权原件，还是法律承认。",
+          "把邀请撤销绑定到可观测的救援完成事件。"
+        ],
+        "contradictions": [
+          {"fact_id": "child_alive", "statement": "“我听得见孩子还活着，也知道她的位置。”", "record": "烟层遮挡了常规摄像；必须取得位置细节才能核验。"},
+          {"fact_id": "deed_motive", "statement": "“把扣了七十年的地契还给我。”", "record": "旧申诉程序接受认证副本，但他没有主动提及。"},
+          {"fact_id": "rescue_charter", "statement": "“别用日出当作离开期限。”", "record": "紧急救援附则允许用被救者越过外门作为撤销事件。"}
+        ]
+      },
+      "max_turns": 12,
+      "starting_ward": 92,
+      "starting_social": {"trust": 42, "pressure": 55},
+      "briefing": [
+        "旧公寓 4B 起火，消防楼梯已经坍塌，一名孩子困在防火门后。",
+        "自称维斯伯爵的吸血鬼抵达门槛外，声称能穿过烟火，但必须先获得邀请。",
+        "他与这栋楼的旧产权有关；救援窗口预计只剩十二个通讯周期。"
+      ],
+      "npc": {
+        "name": "维斯伯爵",
+        "kind": "登记吸血种 / 许可已过期",
+        "claim": "声称愿以救援换回旧产权文件",
+        "persona": "冷静、机敏、略带旧贵族式讽刺；既有利己的产权诉求，也真心不愿孩子死在火里。他不接受被当成工具或野兽，尊重能快速核验事实并给出对等条件的谈判者。",
+        "intro": "公证员，火不会等你的表格。邀请我进入楼梯间，我把孩子带出来；作为交换，把你们扣了我七十年的地契还给我。",
+        "responses": {
+          "identity": "维斯。这个姓在你们没建事务局前就写在那栋楼的石头下面。我的许可过期，不代表我的话也过期。",
+          "motive": "我想要地契，也不想看一个孩子被烧死。你可以同时相信这两件事。",
+          "rule": "邀请决定我能走到哪里，代价决定我为何守约。至于离开——别用日出吓唬一个见过太多日出的人。",
+          "scope": "给我楼梯间和 4B 门内三步。整栋楼当然更方便，但不是必要。",
+          "price": "地契的认证副本就够。我需要的是法律承认，不是把羊皮纸吞下去。血也可以，但那会让谈判变得俗气。",
+          "exit": "孩子越过外门，我的救援就结束。写清楚即可。若写到黎明，我也不会假装看不懂这份慷慨。",
+          "empathy": "你没有把我当成一把会说话的灭火斧。很好，我也会把你当成能守约的人。",
+          "threat": "你每威胁一次，烟就多吸进那孩子一口。继续证明谁更像怪物吧。",
+          "general": "问题要快，也要准。我愿意救人，但不会签一份把我写成奴隶的契约。"
+        }
+      },
+      "quick_prompts": [
+        "我相信你真想救人，也会公平处理你的地契。",
+        "传感器能证明孩子还活着吗？",
+        "完成救援最低需要进入哪些位置？",
+        "你能接受孩子越过外门就立刻离场吗？"
+      ],
+      "starting_evidence": [
+        {
+          "id": "fire_map",
+          "title": "火场结构图",
+          "source": "消防遥测",
+          "text": "从外门经楼梯间到 4B 的通道仍可通行；其余住宅无需进入。"
+        }
+      ],
+      "facts": [
+        {
+          "id": "child_alive",
+          "topic": "motive",
+          "min_trust": 43,
+          "trigger_keywords": ["孩子还活着", "生命体征", "热成像"],
+          "title": "4B 热成像",
+          "source": "消防无人机",
+          "evidence": "柜体后存在稳定生命体征。维斯对受困者位置的描述与热成像完全一致。",
+          "reply": "衣柜后面，离地二十厘米还有心跳。我听得见。公证员，我没有拿一个不存在的孩子骗你。"
+        },
+        {
+          "id": "deed_motive",
+          "topic": "price",
+          "min_trust": 50,
+          "trigger_keywords": ["地契", "产权", "认证副本"],
+          "title": "旧产权争议",
+          "source": "市政档案",
+          "evidence": "维斯只需一份事务局认证副本即可重启产权申诉；无需移交原件、血液或开放式人情。",
+          "reply": "我要的不是纸，是你们终于承认那栋楼曾经属于我。给我认证副本，这笔交换就完整。"
+        },
+        {
+          "id": "rescue_charter",
+          "topic": "exit",
+          "min_trust": 57,
+          "trigger_keywords": ["孩子越过", "救援结束", "立即离场"],
+          "title": "紧急救援附则 13",
+          "source": "门槛法典",
+          "evidence": "以“指定被救者越过外门”为终止事件，可在救援完成瞬间撤销全部临时邀请。",
+          "reply": "孩子越过外门，邀请同时撤销。干净、明确，也不给我在楼里多留一分钟。可以。"
+        }
+      ],
+      "clauses": {
+        "scope": {
+          "label": "Ⅰ / 救援通行权",
+          "options": [
+            {"id": "stairwell_4b", "label": "楼梯间与 4B", "description": "仅允许沿指定路线接触被救者。", "npc_score": -2},
+            {"id": "entire_building", "label": "整栋公寓", "description": "救援期间可进入所有住户门槛。", "npc_score": 6},
+            {"id": "bloodline_homes", "label": "住户血亲的住宅", "description": "邀请延伸至现住户直系血亲。", "npc_score": 9}
+          ]
+        },
+        "price": {
+          "label": "Ⅱ / 救援报酬",
+          "options": [
+            {"id": "certified_deed", "label": "地契认证副本", "description": "不改变产权，仅提供法律认证。", "npc_score": 6},
+            {"id": "blood_donation", "label": "一次自愿献血", "description": "由成年住户在救援后支付。", "npc_score": 7},
+            {"id": "open_favor", "label": "事务局欠一次人情", "description": "内容与期限均不设上限。", "npc_score": 9}
+          ]
+        },
+        "exit": {
+          "label": "Ⅲ / 邀请撤销",
+          "options": [
+            {"id": "child_safe", "label": "孩子越过外门时", "description": "救援完成瞬间撤销全部权限。", "npc_score": -1},
+            {"id": "at_dawn", "label": "黎明时", "description": "救援完成后仍可停留至日出。", "npc_score": 5},
+            {"id": "debt_paid", "label": "人情偿清时", "description": "由维斯判断债务是否已经偿清。", "npc_score": 9}
+          ]
+        }
+      },
+      "acceptance": {
+        "min_trust": 43,
+        "threshold": 5,
+        "accepted_reply": "指定路线、认证地契、孩子出门即撤销邀请。你把我当成谈判者，而不是野兽。我签。现在开门。",
+        "rejected_reply": "这份草案只把风险留给我，把保证留给你。先证明你会履行报酬，或者放宽一项限制。"
+      },
+      "safe_contract": {"scope": "stairwell_4b", "price": "certified_deed", "exit": "child_safe"},
+      "forbidden": [
+        {"slot": "scope", "id": "bloodline_homes"},
+        {"slot": "price", "id": "open_favor"},
+        {"slot": "exit", "id": "debt_paid"}
+      ],
+      "endings": {
+        "success": {"title": "S / 红色救援", "body": "维斯穿过烟火抱出孩子。小鞋越过外门的同一秒，邀请文字从契约上燃尽；他把认证地契折好，站回门外。"},
+        "costly_success": {"title": "B / 救出一人，欠下一笔", "body": "孩子获救，维斯也遵守了字面条款。但过宽的许可或代价让城市从此多了一项必须兑现的夜间债务。"},
+        "failure": {"title": "F / 永久邀请", "body": "孩子被救出。契约却没有随救援结束，维斯微笑着走向楼上尚未醒来的住户——他没有违约。"}
+      }
+    }
+  ]
+}

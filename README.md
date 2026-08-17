@@ -34,7 +34,11 @@
 - 最终只有两个判断：可信来客 / 伪人；判断正确自动进入下一关，错误留在本关复盘
 - 四套原创第一人称门口遭遇场景，使用克制视差和轻量暗角
 - 离线本地人格可直接玩；可选在线模型增强，断线自动降级
-- Godot 核心 37 项检查、Python 对话服务 3 项检查
+- 版本化 Context Compiler、知识锁硬过滤、事件溯源主观记忆与过期回复拒绝
+- Structured Outputs + 引用/动作白名单校验 + prompt trace
+- Godot 核心 50 项检查、UI 流程 1 项检查、Python 对话服务 5 项检查
+
+完整的模块边界、数据模型、上下文编译流程、异常处理、测试策略以及可直接用于简历的项目描述，见 [AI NPC 工程设计](AI_NPC_ENGINEERING.md)。
 
 ## 直接运行
 
@@ -93,10 +97,11 @@ clause13/
 ├─ data/campaign.json                 # 教学 + 三关内容、私有身份与验证条件
 ├─ scenes/main.tscn                   # 入口场景
 ├─ scripts/core/case_simulation.gd    # 唯一权威世界状态
-├─ scripts/services/                  # 本地人格与可选在线服务
+├─ scripts/services/                  # 本地人格、上下文编译与可选在线服务
 ├─ assets/encounters/                 # 四关原创访客场景与美术提示词
 ├─ scripts/ui/                        # 第一人称审问 UI 与模拟影像效果
 ├─ server.py                          # 可选 Responses API 对话边车
 ├─ tests/                             # Godot / Python 自动化检查
-└─ DESIGN.md                          # 背景、研究结论与扩展路线
+├─ DESIGN.md                          # 背景、研究结论与扩展路线
+└─ AI_NPC_ENGINEERING.md              # 简历/面试可展开的 AI NPC 工程设计
 ```

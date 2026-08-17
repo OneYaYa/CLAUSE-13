@@ -61,9 +61,9 @@ func _on_player_submitted(text: String) -> void:
 	_dialogue_service.request_reply(context, text)
 
 
-func _on_dialogue_reply_ready(player_text: String, reply: String, _provider: String) -> void:
+func _on_dialogue_reply_ready(player_text: String, reply: String, _provider: String, request_meta: Dictionary) -> void:
 	_ui.set_thinking(false)
-	_ui.show_result(_simulation.talk_with_reply(player_text, reply))
+	_ui.show_result(_simulation.talk_with_reply(player_text, reply, request_meta))
 	_ui.focus_input()
 
 

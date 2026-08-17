@@ -13,6 +13,9 @@ func _ready() -> void:
 	_test_protocol_is_evidence_not_ending()
 	_test_verdicts_define_win_and_loss()
 	_test_turn_limit_requires_verdict()
+	_test_compiled_context_enforces_knowledge_boundaries()
+	_test_subjective_memory_links_to_immutable_event()
+	_test_stale_online_reply_is_rejected()
 	print("Clause 13 simulation: %d checks, %d failures" % [_checks, _failures])
 	get_tree().quit(1 if _failures > 0 else 0)
 
@@ -105,6 +108,53 @@ func _test_turn_limit_requires_verdict() -> void:
 	_expect_equal(str(state.get("outcome", "")), "ongoing", "case waits for player verdict")
 	_expect(not bool(simulation.talk("继续说。 ").get("ok", true)), "further dialogue stops at limit")
 	_expect_equal(str((simulation.submit_verdict(true).get("snapshot", {}) as Dictionary).get("outcome", "")), "success", "player can still submit verdict at limit")
+
+
+func _test_compiled_context_enforces_knowledge_boundaries() -> void:
+	var simulation := Simulation.new() as Clause13CaseSimulation
+	simulation.start_case("rain_guest")
+	var context := simulation.dialogue_context("先说说你为什么来，外面并没有下雨。")
+	_expect_equal(int(context.get("context_schema_version", 0)), 2, "dialogue uses versioned context compiler")
+	_expect(not context.has("public_dossier"), "NPC context never receives the player's dossier")
+	_expect(not context.has("objective"), "NPC context excludes player-facing objective and verdict hints")
+	var beliefs: Array = context.get("known_beliefs", []) as Array
+	var belief_ids: Array[String] = []
+	for raw: Variant in beliefs:
+		belief_ids.append(str((raw as Dictionary).get("belief_id", "")))
+	_expect("rain_anchor" in belief_ids, "current knowledge-lock fact is authorized")
+	_expect("name_binding" not in belief_ids, "unearned private belief is hard-filtered")
+	var trace: Dictionary = context.get("prompt_trace", {}) as Dictionary
+	_expect_equal(str(trace.get("compiler_version", "")), "clause13-context-v2", "context trace records compiler version")
+	_expect((trace.get("dropped", []) as Array).size() >= 1, "trace explains dropped knowledge")
+
+
+func _test_subjective_memory_links_to_immutable_event() -> void:
+	var simulation := Simulation.new() as Clause13CaseSimulation
+	var before := simulation.start_case("shadow_tailor")
+	var result := simulation.talk("我保证会给你公平的工钱，也会认真听你说。")
+	var after: Dictionary = result.get("snapshot", {}) as Dictionary
+	_expect(int(after.get("state_version", 0)) > int(before.get("state_version", 0)), "committed dialogue increments state version")
+	var event_ids: Array = after.get("recent_event_ids", []) as Array
+	_expect_equal(event_ids.size(), 1, "dialogue appends one immutable world event")
+	var memory: Dictionary = after.get("memory", {}) as Dictionary
+	var entries: Array = memory.get("entries", []) as Array
+	_expect_equal(entries.size(), 1, "dialogue creates one subjective memory projection")
+	_expect_equal(str((entries[0] as Dictionary).get("event_id", "")), str(event_ids[0]), "subjective memory keeps objective event provenance")
+	_expect(float((entries[0] as Dictionary).get("salience", 0.0)) >= 0.9, "explicit promise receives high memory salience")
+
+
+func _test_stale_online_reply_is_rejected() -> void:
+	var simulation := Simulation.new() as Clause13CaseSimulation
+	simulation.start_case("rain_guest")
+	var context := simulation.dialogue_context("你是谁？")
+	simulation.select_clause("scope", "vestibule")
+	var turn_before := int(simulation.snapshot().get("turn", 0))
+	var stale := simulation.talk_with_reply("你是谁？", "我是一个旧邻居。", {
+		"case_id": str(context.get("case_id", "")),
+		"snapshot_version": int(context.get("snapshot_version", -1)),
+	})
+	_expect(not bool(stale.get("ok", true)), "reply generated from stale snapshot is rejected")
+	_expect_equal(int(simulation.snapshot().get("turn", 0)), turn_before, "stale reply cannot mutate current world state")
 
 
 func _expect(condition: bool, label: String) -> void:

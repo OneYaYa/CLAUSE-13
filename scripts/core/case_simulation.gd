@@ -8,6 +8,7 @@ signal case_ended(outcome: String, snapshot: Dictionary)
 
 const DEFAULT_CAMPAIGN_PATH := "res://data/campaign.json"
 const LocalAgent := preload("res://scripts/services/local_npc_agent.gd")
+const ContextCompiler := preload("res://scripts/services/npc_context_compiler.gd")
 const CLAUSE_SLOTS: Array[String] = ["scope", "price", "exit"]
 
 var _campaign_path := DEFAULT_CAMPAIGN_PATH
@@ -17,11 +18,14 @@ var _case: Dictionary = {}
 var _state: Dictionary = {}
 var _load_error := ""
 var _agent: LocalNpcAgent
+var _context_compiler: RefCounted
+var _event_log: Array[Dictionary] = []
 
 
 func _init(campaign_path: String = DEFAULT_CAMPAIGN_PATH) -> void:
 	_campaign_path = campaign_path
 	_agent = LocalAgent.new() as LocalNpcAgent
+	_context_compiler = ContextCompiler.new() as RefCounted
 	_load_campaign()
 
 
@@ -44,6 +48,7 @@ func start_case(case_id: String) -> Dictionary:
 	if not _case_by_id.has(case_id):
 		return {"ok": false, "error": "案件不存在：%s" % case_id, "is_terminal": true}
 	_case = (_case_by_id[case_id] as Dictionary).duplicate(true)
+	_event_log.clear()
 	var npc: Dictionary = _case.get("npc", {}) as Dictionary
 	var starting_social: Dictionary = _case.get("starting_social", {}) as Dictionary
 	var evidence: Array[Dictionary] = []
@@ -51,6 +56,7 @@ func start_case(case_id: String) -> Dictionary:
 		evidence.append((raw as Dictionary).duplicate(true))
 	_state = {
 		"case_id": case_id,
+		"state_version": 1,
 		"turn": 0,
 		"ward": int(_case.get("starting_ward", 100)),
 		"trust": int(starting_social.get("trust", 45)),
@@ -71,7 +77,9 @@ func start_case(case_id: String) -> Dictionary:
 			"promises": [],
 			"player_name": "",
 			"last_player_line": "",
+			"entries": [],
 		},
+		"relationship_change": "stable",
 		"outcome": "ongoing",
 		"ending_reason": "",
 		"is_terminal": false,
@@ -106,6 +114,7 @@ func snapshot() -> Dictionary:
 		"is_tutorial": bool(_case.get("is_tutorial", false)),
 		"case_title": str(_case.get("title", "")),
 		"case_subtitle": str(_case.get("subtitle", "")),
+		"state_version": int(_state.get("state_version", 0)),
 		"estimated_minutes": int(_case.get("estimated_minutes", 8)),
 		"objective": str(_case.get("objective", "")),
 		"briefing": (_case.get("briefing", []) as Array).duplicate(true),
@@ -139,6 +148,7 @@ func snapshot() -> Dictionary:
 		"is_terminal": bool(_state.get("is_terminal", false)),
 		"debrief": (_state.get("debrief", {}) as Dictionary).duplicate(true),
 		"last_event": (_state.get("last_event", {}) as Dictionary).duplicate(true),
+		"recent_event_ids": _recent_event_ids(),
 	}
 
 
@@ -155,49 +165,42 @@ func dialogue_context(player_text: String) -> Dictionary:
 		"state": _state.duplicate(true),
 	}, clean)
 	var npc: Dictionary = _case.get("npc", {}) as Dictionary
-	var revealed_facts: Array[Dictionary] = []
-	for raw: Variant in _case.get("facts", []) as Array:
-		var fact := raw as Dictionary
-		if str(fact.get("id", "")) in (_state.get("revealed_fact_ids", []) as Array) or str(fact.get("id", "")) == str(local_decision.get("reveal_id", "")):
-			revealed_facts.append({
-				"id": str(fact.get("id", "")),
-				"evidence": str(fact.get("evidence", "")),
-				"private_reply_fact": str(fact.get("reply", "")),
-			})
-	return {
+	return _context_compiler.compile({
 		"case_id": str(_case.get("id", "")),
 		"case_title": str(_case.get("title", "")),
-		"objective": str(_case.get("objective", "")),
-		"public_dossier": _public_dossier(),
-		"npc": {
-			"name": str(npc.get("name", "来客")),
-			"kind": str(npc.get("kind", "未登记异类")),
-			"claim": str(npc.get("claim", "")),
-			"persona": str(npc.get("persona", npc.get("claim", ""))),
-			"voice_examples": (npc.get("responses", {}) as Dictionary).duplicate(true),
-		},
+		"npc": npc.duplicate(true),
+		"facts": (_case.get("facts", []) as Array).duplicate(true),
 		"state": {
+			"state_version": int(_state.get("state_version", 0)),
 			"trust": int(_state.get("trust", 0)),
 			"pressure": int(_state.get("pressure", 0)),
 			"mood": _mood(),
 			"turn": int(_state.get("turn", 0)),
+			"talk_exhausted": not _can_talk(),
+			"protocol_tested": bool(_state.get("protocol_tested", false)),
+			"revealed_fact_ids": (_state.get("revealed_fact_ids", []) as Array).duplicate(),
 			"memory": (_state.get("memory", {}) as Dictionary).duplicate(true),
+			"relationship_change": str(_state.get("relationship_change", "stable")),
 		},
 		"authoritative_read": {
 			"intent": str(local_decision.get("intent", "conversation")),
 			"topic": str(local_decision.get("topic", "general")),
 			"reveal_id": str(local_decision.get("reveal_id", "")),
 			"required_fact": str(local_decision.get("reply", "")) if not str(local_decision.get("reveal_id", "")).is_empty() else "",
+			"semantic_anchor": str(local_decision.get("reply", "")),
 		},
-		"known_facts": revealed_facts,
-		"transcript": (_state.get("transcript", []) as Array).slice(maxi(0, (_state.get("transcript", []) as Array).size() - 8)),
-	}
+		"transcript": (_state.get("transcript", []) as Array).duplicate(true),
+	})
 
 
-func talk_with_reply(player_text: String, reply_override: String = "") -> Dictionary:
+func talk_with_reply(player_text: String, reply_override: String = "", expected_context: Dictionary = {}) -> Dictionary:
 	var clean := player_text.strip_edges()
 	if clean.is_empty():
 		return _result(false, "请先输入要对来客说的话。")
+	if not expected_context.is_empty():
+		if str(expected_context.get("case_id", "")) != str(_state.get("case_id", "")) \
+				or int(expected_context.get("snapshot_version", -1)) != int(_state.get("state_version", 0)):
+			return _result(false, "对话上下文已经过期；世界状态已变化，请重新提问。")
 	if not _can_act():
 		return _result(false, "本案已经封存。")
 	if not _can_talk():
@@ -209,11 +212,20 @@ func talk_with_reply(player_text: String, reply_override: String = "") -> Dictio
 	var decision: Dictionary = _agent.decide(context, clean)
 	var online_reply := reply_override.strip_edges().left(600)
 	if not online_reply.is_empty():
-		decision["reply"] = online_reply
+		var generation_trace: Dictionary = expected_context.get("generation_trace", {}) as Dictionary
+		var visible_action := str(generation_trace.get("action", "")).strip_edges().left(180)
+		decision["reply"] = "（%s）\n%s" % [visible_action, online_reply] if not visible_action.is_empty() else online_reply
+	var trust_before := int(_state.get("trust", 0))
+	var pressure_before := int(_state.get("pressure", 0))
 	_advance_turn(4)
-	_state["trust"] = clampi(int(_state.get("trust", 0)) + int(decision.get("trust_delta", 0)), 0, 100)
-	_state["pressure"] = clampi(int(_state.get("pressure", 0)) + int(decision.get("pressure_delta", 0)), 0, 100)
-	_remember_player_line(clean, decision)
+	_state["trust"] = clampi(trust_before + int(decision.get("trust_delta", 0)), 0, 100)
+	_state["pressure"] = clampi(pressure_before + int(decision.get("pressure_delta", 0)), 0, 100)
+	_state["relationship_change"] = _relationship_change(
+		int(_state.get("trust", 0)) - trust_before,
+		int(_state.get("pressure", 0)) - pressure_before
+	)
+	var event_id := _next_event_id("dialogue")
+	_remember_player_line(clean, decision, event_id)
 	var reveal_id := str(decision.get("reveal_id", ""))
 	if not reveal_id.is_empty():
 		_reveal_fact(reveal_id)
@@ -221,11 +233,14 @@ func talk_with_reply(player_text: String, reply_override: String = "") -> Dictio
 	_append_transcript("你", clean, "player")
 	_append_transcript(npc_name, str(decision.get("reply", "……")), "npc")
 	var event := {
+		"event_id": event_id,
 		"type": "dialogue",
 		"text": str(decision.get("reply", "……")),
 		"intent": str(decision.get("intent", "conversation")),
 		"topic": str(decision.get("topic", "general")),
 		"reveal_id": reveal_id,
+		"source_snapshot_version": int(expected_context.get("snapshot_version", _state.get("state_version", 0))),
+		"generation_trace": (expected_context.get("generation_trace", {}) as Dictionary).duplicate(true),
 	}
 	return _commit_event(event)
 
@@ -340,19 +355,28 @@ func _advance_turn(ward_cost: int) -> void:
 
 
 func _commit_event(event: Dictionary) -> Dictionary:
-	_state["last_event"] = event.duplicate(true)
+	var committed := event.duplicate(true)
+	if str(committed.get("event_id", "")).is_empty():
+		committed["event_id"] = _next_event_id(str(committed.get("type", "event")))
+	committed["case_id"] = str(_state.get("case_id", ""))
+	committed["world_turn"] = int(_state.get("turn", 0))
+	committed["source_version"] = int(_state.get("state_version", 0))
+	_state["state_version"] = int(_state.get("state_version", 0)) + 1
+	committed["committed_version"] = int(_state.get("state_version", 0))
+	_event_log.append(committed.duplicate(true))
+	_state["last_event"] = committed.duplicate(true)
 	var view := snapshot()
-	var result := _result(true, str(event.get("text", "")))
-	result["event"] = event.duplicate(true)
+	var result := _result(true, str(committed.get("text", "")))
+	result["event"] = committed.duplicate(true)
 	result["snapshot"] = view
-	case_event.emit(event.duplicate(true))
+	case_event.emit(committed.duplicate(true))
 	state_changed.emit(view)
 	if bool(_state.get("is_terminal", false)):
 		case_ended.emit(str(_state.get("outcome", "failure")), view)
 	return result
 
 
-func _remember_player_line(text: String, decision: Dictionary) -> void:
+func _remember_player_line(text: String, decision: Dictionary, event_id: String) -> void:
 	var memory: Dictionary = _state.get("memory", {}) as Dictionary
 	var topics: Array = memory.get("topics", []) as Array
 	var topic := str(decision.get("topic", "general"))
@@ -371,6 +395,37 @@ func _remember_player_line(text: String, decision: Dictionary) -> void:
 		var matched := regex.search(text)
 		if matched != null:
 			memory["player_name"] = matched.get_string(1)
+	var intent := str(decision.get("intent", "conversation"))
+	var subjective_text := "核验员询问了%s，并期待一个可核验的回答。" % str(decision.get("topic", "当前话题"))
+	var valence := "neutral"
+	var salience := 0.45
+	if intent == "provoke":
+		subjective_text = "核验员用带敌意的方式施压；这会影响我接下来愿意透露多少。"
+		valence = "negative"
+		salience = 0.85
+	elif intent == "empathize":
+		subjective_text = "核验员尝试理解我，并给出善意或保证；我会观察其是否兑现。"
+		valence = "positive"
+		salience = 0.72
+	elif intent == "bargain":
+		subjective_text = "核验员开始谈交换条件；我会用自己的目标衡量这是否公平。"
+		salience = 0.68
+	if text.contains("我保证") or text.contains("我答应") or text.contains("我会"):
+		subjective_text += " 其中包含一项明确承诺。"
+		salience = 0.95
+	var entries: Array = memory.get("entries", []) as Array
+	entries.append({
+		"memory_id": "memory:%s" % event_id,
+		"event_id": event_id,
+		"subjective_text": subjective_text,
+		"salience": salience,
+		"valence": valence,
+		"tier": "recent",
+		"learned_at": int(_state.get("turn", 0)),
+	})
+	if entries.size() > 12:
+		entries = entries.slice(entries.size() - 12)
+	memory["entries"] = entries
 	_state["memory"] = memory
 
 
@@ -504,6 +559,30 @@ func _story_case_total() -> int:
 		if not bool((raw as Dictionary).get("is_tutorial", false)):
 			total += 1
 	return total
+
+
+func _next_event_id(event_type: String) -> String:
+	return "%s:event:%04d:%s" % [
+		str(_state.get("case_id", "case")),
+		int(_state.get("state_version", 0)) + 1,
+		event_type,
+	]
+
+
+func _recent_event_ids() -> Array[String]:
+	var output: Array[String] = []
+	var start := maxi(0, _event_log.size() - 8)
+	for index: int in range(start, _event_log.size()):
+		output.append(str((_event_log[index] as Dictionary).get("event_id", "")))
+	return output
+
+
+func _relationship_change(trust_delta: int, pressure_delta: int) -> String:
+	if trust_delta >= 4 and pressure_delta <= 0:
+		return "warming"
+	if trust_delta < 0 or pressure_delta >= 6:
+		return "strained"
+	return "stable"
 
 
 func _result(ok: bool, message: String) -> Dictionary:

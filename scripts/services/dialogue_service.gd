@@ -2,7 +2,7 @@ class_name Clause13DialogueService
 extends Node
 
 
-signal reply_ready(player_text: String, reply: String, provider: String)
+signal reply_ready(player_text: String, reply: String, provider: String, request_meta: Dictionary)
 signal status_changed(status: String, detail: String)
 
 @export var endpoint := "http://127.0.0.1:8793/api/dialogue"
@@ -14,6 +14,7 @@ var _player_text := ""
 var _busy := false
 var _online_ready := false
 var _request_kind := ""
+var _request_meta: Dictionary = {}
 
 
 func _ready() -> void:
@@ -29,9 +30,15 @@ func request_reply(context: Dictionary, player_text: String) -> void:
 	var clean := player_text.strip_edges().left(500)
 	if clean.is_empty():
 		return
+	var request_meta := {
+		"case_id": str(context.get("case_id", "")),
+		"turn_id": str(context.get("turn_id", "")),
+		"snapshot_version": int(context.get("snapshot_version", -1)),
+	}
 	if _busy or not _online_ready:
-		reply_ready.emit(clean, "", "local")
+		reply_ready.emit(clean, "", "local", request_meta)
 		return
+	_request_meta = request_meta
 	_busy = true
 	_request_kind = "dialogue"
 	_player_text = clean
@@ -52,6 +59,7 @@ func cancel_pending() -> void:
 	_busy = false
 	_request_kind = ""
 	_player_text = ""
+	_request_meta.clear()
 	status_changed.emit("local", "在线请求已取消，继续使用本地人格")
 
 
@@ -96,15 +104,27 @@ func _on_request_completed(result: int, response_code: int, _headers: PackedStri
 		return
 	var message := _player_text
 	_player_text = ""
+	var meta := _request_meta.duplicate(true)
+	meta["generation_trace"] = {
+		"provider": str((parsed as Dictionary).get("provider", "openai")),
+		"model": str((parsed as Dictionary).get("model", "")),
+		"prompt_hash": str((parsed as Dictionary).get("prompt_hash", "")),
+		"action": str((parsed as Dictionary).get("action", "")),
+		"referenced_ids": ((parsed as Dictionary).get("referenced_ids", []) as Array).duplicate(),
+		"proposed_actions": ((parsed as Dictionary).get("proposed_actions", []) as Array).duplicate(true),
+	}
+	_request_meta.clear()
 	status_changed.emit("online", "在线人格回应已接收；契约裁决仍由本地核心执行")
-	reply_ready.emit(message, reply, "online")
+	reply_ready.emit(message, reply, "online", meta)
 
 
 func _fallback(reason: String) -> void:
 	var message := _player_text
 	_player_text = ""
+	var meta := _request_meta.duplicate(true)
+	_request_meta.clear()
 	_online_ready = false
 	_busy = false
 	_request_kind = ""
 	status_changed.emit("local", "%s；本轮使用本地人格" % reason)
-	reply_ready.emit(message, "", "local_fallback")
+	reply_ready.emit(message, "", "local_fallback", meta)

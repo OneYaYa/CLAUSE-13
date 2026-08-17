@@ -2,28 +2,28 @@ class_name Clause13UI
 extends Control
 
 
-signal case_selected(case_id: String)
 signal player_submitted(text: String)
 signal clause_selected(slot: String, clause_id: String)
 signal propose_requested()
-signal sign_requested()
+signal verdict_requested(suspect_is_impostor: bool)
 signal restart_requested()
 signal next_case_requested()
 
 const ENCOUNTER_TEXTURES := {
+	"training_inspector": preload("res://assets/encounters/training_inspector_v1.png"),
 	"rain_guest": preload("res://assets/encounters/rain_guest_v1.png"),
 	"shadow_tailor": preload("res://assets/encounters/shadow_tailor_v1.png"),
 	"red_rescue": preload("res://assets/encounters/red_rescue_v1.png"),
 }
-const INK := Color("e8dfc8")
-const MUTED := Color("aaa187")
-const PAPER := Color("19170fef")
-const PAPER_LIGHT := Color("211c10f2")
-const BLACK_GLASS := Color("080a08e8")
-const LINE := Color("716849")
-const JADE := Color("8eb9a0")
-const AMBER := Color("d5aa5c")
-const RED := Color("b65b4f")
+const INK := Color("edf1f2")
+const MUTED := Color("9aa7ad")
+const PAPER := Color("101619f2")
+const PAPER_LIGHT := Color("11181cf5")
+const BLACK_GLASS := Color("090e11f2")
+const LINE := Color("3b4950")
+const JADE := Color("79b99f")
+const AMBER := Color("e0b367")
+const RED := Color("d2665d")
 
 var suppress_intro := false
 var _snapshot: Dictionary = {}
@@ -31,7 +31,6 @@ var _catalog: Array[Dictionary] = []
 var _updating := false
 var _current_case_id := ""
 var _elapsed := 0.0
-var _next_flicker := 1.6
 
 var _encounter_background: TextureRect
 var _scene_tint: ColorRect
@@ -40,13 +39,9 @@ var _scene_fade: ColorRect
 var _overlay: ColorRect
 var _dossier_panel: PanelContainer
 var _contract_panel: PanelContainer
-var _case_selector: OptionButton
+var _progress_label: Label
 var _case_title: Label
 var _turn_label: Label
-var _ward_bar: ProgressBar
-var _ward_value: Label
-var _trust_bar: ProgressBar
-var _pressure_bar: ProgressBar
 var _objective: RichTextLabel
 var _evidence: RichTextLabel
 var _contradictions: RichTextLabel
@@ -60,11 +55,14 @@ var _clause_selectors: Dictionary = {}
 var _clause_details: Dictionary = {}
 var _contract_status: RichTextLabel
 var _propose_button: Button
-var _sign_button: Button
+var _trusted_button: Button
+var _impostor_button: Button
 var _status: Label
 var _authority: Label
 var _outcome_dialog: AcceptDialog
 var _intro_dialog: AcceptDialog
+var _auto_advance_timer: Timer
+var _outcome_action := "none"
 
 
 func _ready() -> void:
@@ -73,8 +71,6 @@ func _ready() -> void:
 	_build()
 	set_process(true)
 	set_process_unhandled_key_input(true)
-	if not suppress_intro:
-		call_deferred("_show_intro")
 
 
 func configure_cases(catalog: Array[Dictionary], current_case_id: String) -> void:
@@ -82,17 +78,16 @@ func configure_cases(catalog: Array[Dictionary], current_case_id: String) -> voi
 	for item: Dictionary in catalog:
 		_catalog.append(item.duplicate(true))
 	_current_case_id = current_case_id
-	_updating = true
-	_case_selector.clear()
-	var selected_index := 0
+	var current: Dictionary = {}
 	for index: int in range(_catalog.size()):
 		var item := _catalog[index]
-		_case_selector.add_item("%02d  %s" % [int(item.get("number", index + 1)), str(item.get("title", ""))])
-		_case_selector.set_item_metadata(index, str(item.get("id", "")))
 		if str(item.get("id", "")) == current_case_id:
-			selected_index = index
-	_case_selector.select(selected_index)
-	_updating = false
+			current = item
+			break
+	if bool(current.get("is_tutorial", false)):
+		_progress_label.text = "教学关"
+	else:
+		_progress_label.text = "案件 %d / 3" % int(current.get("number", 1))
 
 
 func render(snapshot: Dictionary) -> void:
@@ -102,10 +97,7 @@ func render(snapshot: Dictionary) -> void:
 		_set_encounter(next_case_id)
 	_current_case_id = next_case_id
 	_case_title.text = "%s\n%s" % [str(snapshot.get("case_title", "未命名案件")), str(snapshot.get("case_subtitle", ""))]
-	_turn_label.text = "轮次 %02d / %02d" % [int(snapshot.get("turn", 0)), int(snapshot.get("max_turns", 0))]
-	_set_bar(_ward_bar, _ward_value, int(snapshot.get("ward", 0)), JADE)
-	_set_bar(_trust_bar, null, int(snapshot.get("trust", 0)), JADE)
-	_set_bar(_pressure_bar, null, int(snapshot.get("pressure", 0)), RED)
+	_turn_label.text = "核验 %d / %d" % [int(snapshot.get("turn", 0)), int(snapshot.get("max_turns", 0))]
 	var npc: Dictionary = _dict(snapshot.get("npc", {}))
 	_npc_name.text = str(npc.get("name", "门外来客"))
 	_npc_claim.text = "%s  ·  %s" % [str(npc.get("kind", "未登记")), str(npc.get("claim", "身份待核验"))]
@@ -121,7 +113,8 @@ func render(snapshot: Dictionary) -> void:
 	_input.editable = not terminal
 	_send.disabled = terminal
 	_propose_button.disabled = terminal or not bool(snapshot.get("contract_complete", false))
-	_sign_button.disabled = terminal or not bool(snapshot.get("contract_accepted", false))
+	_trusted_button.disabled = terminal
+	_impostor_button.disabled = terminal
 	_status.text = str(snapshot.get("guidance", "等待案件数据。"))
 	_status.add_theme_color_override("font_color", MUTED)
 
@@ -139,20 +132,32 @@ func show_result(result: Dictionary) -> void:
 
 func show_outcome(outcome: String, snapshot: Dictionary) -> void:
 	var debrief: Dictionary = _dict(snapshot.get("debrief", {}))
-	var contract: Dictionary = _dict(debrief.get("contract", {}))
-	_outcome_dialog.title = str(debrief.get("title", "案件封存"))
-	_outcome_dialog.dialog_text = "%s\n\n评级：%s　谈判轮次：%s　最终信任：%s\n\n进入范围：%s\n交换代价：%s\n离开条件：%s\n\n%s" % [
-		str(debrief.get("body", "契约已经执行。")),
-		str(debrief.get("grade", "--")),
-		str(debrief.get("turns", "--")),
-		str(debrief.get("trust", "--")),
-		str(contract.get("scope", "未填写")),
-		str(contract.get("price", "未填写")),
-		str(contract.get("exit", "未填写")),
-		"继续接通下一位来客。" if outcome != "failure" else "可以重开本案，换一种问法和条款组合。",
+	var correct := bool(debrief.get("correct", false))
+	_outcome_dialog.title = str(debrief.get("title", "身份核验结束"))
+	_outcome_dialog.dialog_text = "你的判断：%s\n实际身份：%s\n\n%s\n\n验证协议：%s" % [
+		str(debrief.get("guess_label", "--")),
+		str(debrief.get("actual_label", "--")),
+		str(debrief.get("body", "核验结束。")),
+		str(debrief.get("protocol_summary", "未使用")),
 	]
-	_outcome_dialog.ok_button_text = "下一案" if outcome != "failure" else "返回复盘"
-	_outcome_dialog.popup_centered(Vector2i(580, 420))
+	if correct:
+		_outcome_action = "next"
+		_outcome_dialog.ok_button_text = "立即继续"
+		_outcome_dialog.dialog_text += "\n\n判断正确，2 秒后自动进入下一关。"
+		_auto_advance_timer.start()
+	else:
+		_outcome_action = "retry"
+		_outcome_dialog.ok_button_text = "重新审问"
+	_outcome_dialog.popup_centered(Vector2i(540, 360))
+
+
+func show_campaign_complete() -> void:
+	_auto_advance_timer.stop()
+	_outcome_action = "none"
+	_outcome_dialog.title = "夜班完成"
+	_outcome_dialog.dialog_text = "教学关与三宗正式案件已经全部完成。\n\n你学会了区分“物种异常”和“身份欺骗”：合法登记的异类不一定是伪人，看似普通的人也不能只凭外貌放行。"
+	_outcome_dialog.ok_button_text = "关闭"
+	_outcome_dialog.popup_centered(Vector2i(520, 300))
 
 
 func focus_input() -> void:
@@ -188,12 +193,8 @@ func _process(delta: float) -> void:
 		var mouse := get_viewport().get_mouse_position()
 		var target := Vector2.ZERO
 		if viewport_size.x > 0.0 and viewport_size.y > 0.0:
-			target = (mouse / viewport_size - Vector2(0.5, 0.5)) * Vector2(9.0, 5.0)
-		var breath := Vector2(sin(_elapsed * 0.31), cos(_elapsed * 0.24)) * 1.4
-		_encounter_background.position = Vector2(-30.0, -26.0) - target + breath
-	if _elapsed >= _next_flicker:
-		_next_flicker = _elapsed + randf_range(1.2, 4.2)
-		_flicker_light()
+			target = (mouse / viewport_size - Vector2(0.5, 0.5)) * Vector2(4.0, 2.0)
+		_encounter_background.position = Vector2(-30.0, -26.0) - target
 
 
 func _build() -> void:
@@ -259,7 +260,7 @@ func _build_scene() -> void:
 
 
 func _build_top_bar() -> void:
-	var panel := _panel(Color("090b09e8"), Color("5f5b43"))
+	var panel := _panel(Color("0a1013f2"), LINE)
 	_place(panel, 16.0, 16.0, -16.0, 72.0)
 	add_child(panel)
 	var margin := _margin(12, 7)
@@ -268,35 +269,27 @@ func _build_top_bar() -> void:
 	row.add_theme_constant_override("separation", 10)
 	margin.add_child(row)
 	var mark := Label.new()
-	mark.text = "第十三条款\nNIGHT NOTARY"
+	mark.text = "CLAUSE 13\n夜间核验局"
 	mark.add_theme_color_override("font_color", AMBER)
 	mark.add_theme_font_size_override("font_size", 13)
 	row.add_child(mark)
-	_case_selector = OptionButton.new()
-	_case_selector.custom_minimum_size.x = 155
-	_case_selector.item_selected.connect(_on_case_selected)
-	row.add_child(_case_selector)
+	_progress_label = Label.new()
+	_progress_label.text = "教学关"
+	_progress_label.custom_minimum_size.x = 72
+	_progress_label.add_theme_color_override("font_color", JADE)
+	_progress_label.add_theme_font_size_override("font_size", 12)
+	row.add_child(_progress_label)
 	_case_title = Label.new()
 	_case_title.text = "等待接通\n未登记访客"
-	_case_title.custom_minimum_size.x = 160
+	_case_title.custom_minimum_size.x = 260
 	_case_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_case_title.add_theme_font_size_override("font_size", 13)
 	_case_title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	row.add_child(_case_title)
-	var ward := _inline_meter("门槛", JADE, true)
-	row.add_child(ward["root"])
-	_ward_bar = ward["bar"] as ProgressBar
-	_ward_value = ward["value"] as Label
-	var trust := _inline_meter("信任", JADE, false)
-	row.add_child(trust["root"])
-	_trust_bar = trust["bar"] as ProgressBar
-	var pressure := _inline_meter("压迫", RED, false)
-	row.add_child(pressure["root"])
-	_pressure_bar = pressure["bar"] as ProgressBar
 	_turn_label = Label.new()
-	_turn_label.text = "轮次 00 / 00"
+	_turn_label.text = "核验 0 / 0"
 	_turn_label.add_theme_color_override("font_color", INK)
-	_turn_label.add_theme_font_size_override("font_size", 11)
+	_turn_label.add_theme_font_size_override("font_size", 12)
 	row.add_child(_turn_label)
 	var dossier_toggle := Button.new()
 	dossier_toggle.text = "卷宗"
@@ -304,8 +297,8 @@ func _build_top_bar() -> void:
 	dossier_toggle.pressed.connect(_toggle_dossier)
 	row.add_child(dossier_toggle)
 	var contract_toggle := Button.new()
-	contract_toggle.text = "契约"
-	contract_toggle.tooltip_text = "显示或收起约束文书"
+	contract_toggle.text = "验证协议"
+	contract_toggle.tooltip_text = "显示或收起可选的口供验证工具"
 	contract_toggle.pressed.connect(_toggle_contract)
 	row.add_child(contract_toggle)
 	var restart := Button.new()
@@ -335,8 +328,8 @@ func _build_dossier() -> void:
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	heading.add_child(spacer)
 	var classified := Label.new()
-	classified.text = "夜班内参"
-	classified.add_theme_color_override("font_color", RED)
+	classified.text = "只读档案"
+	classified.add_theme_color_override("font_color", MUTED)
 	classified.add_theme_font_size_override("font_size", 10)
 	heading.add_child(classified)
 	box.add_child(HSeparator.new())
@@ -387,22 +380,22 @@ func _build_contract() -> void:
 	margin.add_child(box)
 	var heading := HBoxContainer.new()
 	box.add_child(heading)
-	heading.add_child(_header("约束文书 / BINDING DRAFT"))
+	heading.add_child(_header("验证协议 / PROTOCOL"))
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	heading.add_child(spacer)
 	var clause := Label.new()
-	clause.text = "§13"
-	clause.add_theme_color_override("font_color", RED)
-	clause.add_theme_font_size_override("font_size", 18)
+	clause.text = "可选"
+	clause.add_theme_color_override("font_color", JADE)
+	clause.add_theme_font_size_override("font_size", 11)
 	heading.add_child(clause)
 	var explain := Label.new()
-	explain.text = "邀请会被现实逐字执行。三处空白，缺一不可。"
+	explain.text = "用途：把口供变成 3 个可检查条件。\n协议只提供线索，不决定胜负。"
 	explain.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	explain.add_theme_color_override("font_color", MUTED)
 	explain.add_theme_font_size_override("font_size", 11)
 	box.add_child(explain)
-	var slot_names := {"scope": "一、准入范围", "price": "二、交换代价", "exit": "三、离开条件"}
+	var slot_names := {"scope": "1  范围", "price": "2  代价 / 信息", "exit": "3  离场信号"}
 	for slot: String in ["scope", "price", "exit"]:
 		box.add_child(_header(str(slot_names[slot])))
 		var selector := OptionButton.new()
@@ -420,23 +413,43 @@ func _build_contract() -> void:
 	box.add_child(HSeparator.new())
 	_contract_status = RichTextLabel.new()
 	_contract_status.bbcode_enabled = true
-	_contract_status.custom_minimum_size.y = 58
+	_contract_status.custom_minimum_size.y = 52
 	_contract_status.fit_content = false
 	box.add_child(_contract_status)
 	var buttons := HBoxContainer.new()
 	buttons.add_theme_constant_override("separation", 8)
 	box.add_child(buttons)
 	_propose_button = Button.new()
-	_propose_button.text = "递出草案"
+	_propose_button.text = "发起验证"
 	_propose_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_propose_button.pressed.connect(propose_requested.emit)
 	buttons.add_child(_propose_button)
-	_sign_button = Button.new()
-	_sign_button.text = "落印执行"
-	_sign_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_sign_button.pressed.connect(sign_requested.emit)
-	_sign_button.add_theme_color_override("font_color", Color("f1c7a2"))
-	buttons.add_child(_sign_button)
+	box.add_child(HSeparator.new())
+	var verdict_header := _header("最终判断 / VERDICT")
+	box.add_child(verdict_header)
+	var verdict_help := Label.new()
+	verdict_help.text = "胜负只看这里：身份与来意能否被交叉验证？"
+	verdict_help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	verdict_help.add_theme_color_override("font_color", MUTED)
+	verdict_help.add_theme_font_size_override("font_size", 10)
+	box.add_child(verdict_help)
+	var verdict_buttons := HBoxContainer.new()
+	verdict_buttons.add_theme_constant_override("separation", 8)
+	box.add_child(verdict_buttons)
+	_trusted_button = Button.new()
+	_trusted_button.text = "可信来客"
+	_trusted_button.tooltip_text = "身份、来意和记录能够互相印证"
+	_trusted_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_trusted_button.add_theme_color_override("font_color", JADE)
+	_trusted_button.pressed.connect(verdict_requested.emit.bind(false))
+	verdict_buttons.add_child(_trusted_button)
+	_impostor_button = Button.new()
+	_impostor_button.text = "伪人 / 冒名者"
+	_impostor_button.tooltip_text = "身份或来意由模仿、冒用和欺骗构成"
+	_impostor_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_impostor_button.add_theme_color_override("font_color", RED)
+	_impostor_button.pressed.connect(verdict_requested.emit.bind(true))
+	verdict_buttons.add_child(_impostor_button)
 	_authority = Label.new()
 	_authority.text = "NPC PROBING  /  WORLD LOCAL"
 	_authority.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -511,10 +524,13 @@ func _build_dialogs() -> void:
 	_outcome_dialog = AcceptDialog.new()
 	_outcome_dialog.confirmed.connect(_on_outcome_confirmed)
 	add_child(_outcome_dialog)
+	_auto_advance_timer = Timer.new()
+	_auto_advance_timer.one_shot = true
+	_auto_advance_timer.wait_time = 2.0
+	_auto_advance_timer.timeout.connect(_on_auto_advance)
+	add_child(_auto_advance_timer)
 	_intro_dialog = AcceptDialog.new()
-	_intro_dialog.title = "夜班守则：第十三条款"
-	_intro_dialog.ok_button_text = "打开窥视孔"
-	_intro_dialog.dialog_text = "今夜，门外的每个人都需要你的邀请。\n\n先谈话：称谓可以撒谎，欲望和代价很难。\n再核验：左侧案卷只记录能够确认的痕迹。\n后立约：选择准入范围、交换代价与离开条件。\n\n门一旦打开，现实会逐字执行你签下的内容。"
+	_intro_dialog.title = ""
 	add_child(_intro_dialog)
 
 
@@ -525,12 +541,14 @@ func _show_intro() -> void:
 func _set_encounter(case_id: String) -> void:
 	_encounter_background.texture = ENCOUNTER_TEXTURES.get(case_id, ENCOUNTER_TEXTURES["rain_guest"])
 	match case_id:
+		"training_inspector":
+			_scene_tint.color = Color("0710150b")
 		"shadow_tailor":
-			_scene_tint.color = Color("080b1024")
+			_scene_tint.color = Color("080b1014")
 		"red_rescue":
-			_scene_tint.color = Color("1e080621")
+			_scene_tint.color = Color("1e080612")
 		_:
-			_scene_tint.color = Color("07120c20")
+			_scene_tint.color = Color("07120c12")
 	_scene_fade.color = Color(0.0, 0.0, 0.0, 0.88)
 	var tween := create_tween()
 	tween.set_trans(Tween.TRANS_QUAD)
@@ -568,32 +586,32 @@ func _profile_text(snapshot: Dictionary) -> String:
 	var aliases := PackedStringArray()
 	for raw: Variant in _array(dossier.get("aliases", [])):
 		aliases.append(str(raw))
-	var result := "[color=#d5aa5c][font_size=16][b]%s[/b][/font_size][/color]\n" % _escape(str(dossier.get("record_name", npc.get("name", "身份不明"))))
-	result += "[color=#8e8773]档案编号[/color]  %s\n" % _escape(str(dossier.get("archive_id", "未建档")))
-	result += "[color=#8e8773]已知别名[/color]  %s\n" % _escape(" / ".join(aliases))
-	result += "[color=#8e8773]异常分类[/color]  %s\n" % _escape(str(dossier.get("classification", npc.get("kind", "待核验"))))
-	result += "[color=#8e8773]登记状态[/color]  %s\n" % _escape(str(dossier.get("registry_status", "记录缺失")))
-	result += "[color=#8e8773]上次出现[/color]  %s\n\n" % _escape(str(dossier.get("last_seen", "无记录")))
-	result += "[color=#b65b4f][b]风险标签[/b][/color]\n"
+	var result := "[color=#e0b367][font_size=16][b]%s[/b][/font_size][/color]\n" % _escape(str(dossier.get("record_name", npc.get("name", "身份不明"))))
+	result += "[color=#9aa7ad]档案编号[/color]  %s\n" % _escape(str(dossier.get("archive_id", "未建档")))
+	result += "[color=#9aa7ad]已知别名[/color]  %s\n" % _escape(" / ".join(aliases))
+	result += "[color=#9aa7ad]异常分类[/color]  %s\n" % _escape(str(dossier.get("classification", npc.get("kind", "待核验"))))
+	result += "[color=#9aa7ad]登记状态[/color]  %s\n" % _escape(str(dossier.get("registry_status", "记录缺失")))
+	result += "[color=#9aa7ad]上次出现[/color]  %s\n\n" % _escape(str(dossier.get("last_seen", "无记录")))
+	result += "[color=#d2665d][b]风险标签[/b][/color]\n"
 	for raw: Variant in _array(dossier.get("risk_flags", [])):
-		result += "[color=#c57b67]■[/color] %s　" % _escape(str(raw))
-	result += "\n\n[color=#d5aa5c][b]已知行为[/b][/color]"
+		result += "[color=#df7a70]■[/color] %s　" % _escape(str(raw))
+	result += "\n\n[color=#e0b367][b]已知行为[/b][/color]"
 	for raw: Variant in _array(dossier.get("known_behavior", [])):
-		result += "\n[color=#8eb9a0]—[/color] %s" % _escape(str(raw))
-	result += "\n\n[color=#d5aa5c][b]建议问法[/b][/color]"
+		result += "\n[color=#79b99f]—[/color] %s" % _escape(str(raw))
+	result += "\n\n[color=#e0b367][b]建议问法[/b][/color]"
 	for raw: Variant in _array(dossier.get("interview_leads", [])):
-		result += "\n[color=#8eb9a0]›[/color] %s" % _escape(str(raw))
-	result += "\n\n[color=#d5aa5c][b]本夜目标[/b][/color]\n%s\n[color=#8e8773]预计 %d 分钟[/color]" % [
+		result += "\n[color=#79b99f]›[/color] %s" % _escape(str(raw))
+	result += "\n\n[color=#e0b367][b]本夜目标[/b][/color]\n%s\n[color=#9aa7ad]预计 %d 分钟[/color]" % [
 		_escape(str(snapshot.get("objective", ""))), int(snapshot.get("estimated_minutes", 0))
 	]
 	return result
 
 
 func _evidence_text(snapshot: Dictionary) -> String:
-	var result := "[color=#8e8773]证据只记录可交叉验证的事实；新口供会自动归档。[/color]\n\n"
+	var result := "[color=#9aa7ad]只记录可交叉验证的事实；新口供会自动归档。[/color]\n\n"
 	for raw: Variant in _array(snapshot.get("evidence", [])):
 		var item := raw as Dictionary
-		result += "[color=#d5aa5c][b]%s[/b][/color]\n[color=#8e8773]%s[/color]\n%s\n\n" % [
+		result += "[color=#e0b367][b]%s[/b][/color]\n[color=#9aa7ad]%s[/color]\n%s\n\n" % [
 			_escape(str(item.get("title", "未命名证据"))),
 			_escape(str(item.get("source", "来源未明"))),
 			_escape(str(item.get("text", ""))),
@@ -603,17 +621,17 @@ func _evidence_text(snapshot: Dictionary) -> String:
 
 func _contradictions_text(snapshot: Dictionary) -> String:
 	var dossier: Dictionary = _dict(snapshot.get("dossier", {}))
-	var result := "[color=#8e8773]把来客的说法与旧档案对照。灰色项目需要继续追问。[/color]\n\n"
+	var result := "[color=#9aa7ad]把来客说法与旧档案对照；未核验项目需要继续追问。[/color]\n\n"
 	var index := 0
 	for raw: Variant in _array(dossier.get("contradictions", [])):
 		var item := raw as Dictionary
 		index += 1
 		var unlocked := bool(item.get("unlocked", false))
-		result += "[color=#d5aa5c][b]%02d / 来客说法[/b][/color]\n%s\n" % [index, _escape(str(item.get("statement", "无口供")))]
+		result += "[color=#e0b367][b]%02d / 来客说法[/b][/color]\n%s\n" % [index, _escape(str(item.get("statement", "无口供")))]
 		if unlocked:
-			result += "[color=#8eb9a0][b]✓ 已交叉核验[/b][/color]\n%s\n\n" % _escape(str(item.get("record", "记录缺失")))
+			result += "[color=#79b99f][b]✓ 已交叉核验[/b][/color]\n%s\n\n" % _escape(str(item.get("record", "记录缺失")))
 		else:
-			result += "[color=#77715f]□ 尚未核验：围绕此说法继续追问[/color]\n[color=#5f5b4d]档案记录已遮盖[/color]\n\n"
+			result += "[color=#7f8a8f]□ 尚未核验：围绕此说法继续追问[/color]\n[color=#59656a]档案记录已遮盖[/color]\n\n"
 	if index == 0:
 		result += "暂无可比对口供。"
 	return result
@@ -626,7 +644,7 @@ func _dialogue_text(snapshot: Dictionary) -> String:
 	for index: int in range(first, transcript.size()):
 		var line := transcript[index] as Dictionary
 		var player := str(line.get("kind", "")) == "player"
-		var color := "#8eb9a0" if player else "#d5aa5c"
+		var color := "#79b99f" if player else "#e0b367"
 		var speaker := "你" if player else str(line.get("speaker", "来客"))
 		result += "[color=%s][b]%s[/b][/color]  %s\n" % [color, _escape(speaker), _escape(str(line.get("text", "")))]
 	return result
@@ -640,7 +658,7 @@ func _configure_clause_selectors(snapshot: Dictionary) -> void:
 		var selector := _clause_selectors.get(slot) as OptionButton
 		var slot_data: Dictionary = _dict(slots.get(slot, {}))
 		selector.clear()
-		selector.add_item("— 留白 —")
+		selector.add_item("— 未选择 —")
 		selector.set_item_metadata(0, "")
 		var chosen_index := 0
 		var options := _array(slot_data.get("options", []))
@@ -652,17 +670,18 @@ func _configure_clause_selectors(snapshot: Dictionary) -> void:
 				chosen_index = index + 1
 		selector.select(chosen_index)
 		var detail := _clause_details.get(slot) as Label
-		detail.text = "此处留白，契约不会生效。" if chosen_index == 0 else str((options[chosen_index - 1] as Dictionary).get("description", ""))
+		detail.text = "选择一个能被现场证据检查的条件。" if chosen_index == 0 else str((options[chosen_index - 1] as Dictionary).get("description", ""))
 	_updating = false
 
 
 func _render_contract_status(snapshot: Dictionary) -> void:
-	if bool(snapshot.get("contract_accepted", false)):
-		_contract_status.text = "[color=#8eb9a0][b]● 对方已经接受[/b][/color]\n落印后现实立即执行，不能修改。"
+	if bool(snapshot.get("protocol_tested", false)):
+		var color := "#79b99f" if bool(snapshot.get("contract_accepted", false)) else "#e0b367"
+		_contract_status.text = "[color=%s][b]验证结果[/b][/color]\n%s" % [color, _escape(str(snapshot.get("protocol_summary", "核验完成。")))]
 	elif bool(snapshot.get("contract_complete", false)):
-		_contract_status.text = "[color=#d5aa5c][b]● 草案完整，尚未同意[/b][/color]\n递出草案，观察对方是否愿受这些字句约束。"
+		_contract_status.text = "[color=#e0b367][b]条件填写完成[/b][/color]\n发起验证，观察口供是否经得起客观限制。"
 	else:
-		_contract_status.text = "[color=#aaa187][b]○ 文书尚有空白[/b][/color]\n准入范围、交换代价、离开条件缺一不可。"
+		_contract_status.text = "[color=#9aa7ad][b]协议尚未填写[/b][/color]\n这是可选工具；你也可以根据已有证据直接判断。"
 
 
 func _render_prompts(snapshot: Dictionary) -> void:
@@ -680,6 +699,10 @@ func _render_prompts(snapshot: Dictionary) -> void:
 
 
 func _prompt_label(text: String, index: int) -> String:
+	if text.contains("工号") or text.contains("路线") or text.contains("徽章"):
+		return "核对工号"
+	if text.contains("协议") or text.contains("条约") or text.contains("验证"):
+		return "协议用途"
 	if text.contains("身份") or text.contains("你是谁") or text.contains("名字"):
 		return "核验身份"
 	if text.contains("理解") or text.contains("相信") or text.contains("帮你") or text.contains("慢慢"):
@@ -709,14 +732,6 @@ func _submit() -> void:
 	player_submitted.emit(text)
 
 
-func _on_case_selected(index: int) -> void:
-	if _updating:
-		return
-	var case_id := str(_case_selector.get_item_metadata(index))
-	if not case_id.is_empty() and case_id != _current_case_id:
-		case_selected.emit(case_id)
-
-
 func _on_clause_selected(index: int, slot: String) -> void:
 	if _updating:
 		return
@@ -727,52 +742,21 @@ func _on_clause_selected(index: int, slot: String) -> void:
 
 
 func _on_outcome_confirmed() -> void:
-	if str(_snapshot.get("outcome", "")) != "failure":
-		next_case_requested.emit()
+	_auto_advance_timer.stop()
+	match _outcome_action:
+		"next":
+			next_case_requested.emit()
+		"retry":
+			restart_requested.emit()
+	_outcome_action = "none"
 
 
-func _set_bar(bar: ProgressBar, value_label: Label, value: int, color: Color) -> void:
-	bar.value = clampi(value, 0, 100)
-	var fill := bar.get_theme_stylebox("fill") as StyleBoxFlat
-	if fill != null:
-		fill.bg_color = color
-	if value_label != null:
-		value_label.text = "%d" % value
-
-
-func _inline_meter(label_text: String, color: Color, with_value: bool) -> Dictionary:
-	var box := VBoxContainer.new()
-	box.custom_minimum_size.x = 62
-	box.add_theme_constant_override("separation", 1)
-	var label := Label.new()
-	label.text = label_text
-	label.add_theme_color_override("font_color", MUTED)
-	label.add_theme_font_size_override("font_size", 9)
-	box.add_child(label)
-	var row := HBoxContainer.new()
-	box.add_child(row)
-	var bar := ProgressBar.new()
-	bar.min_value = 0
-	bar.max_value = 100
-	bar.show_percentage = false
-	bar.custom_minimum_size = Vector2(46, 7)
-	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var background := StyleBoxFlat.new()
-	background.bg_color = Color("29291f")
-	bar.add_theme_stylebox_override("background", background)
-	var fill := StyleBoxFlat.new()
-	fill.bg_color = color
-	bar.add_theme_stylebox_override("fill", fill)
-	row.add_child(bar)
-	var value: Label = null
-	if with_value:
-		value = Label.new()
-		value.text = "100"
-		value.custom_minimum_size.x = 23
-		value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		value.add_theme_font_size_override("font_size", 8)
-		row.add_child(value)
-	return {"root": box, "bar": bar, "value": value}
+func _on_auto_advance() -> void:
+	if _outcome_action != "next":
+		return
+	_outcome_dialog.hide()
+	_outcome_action = "none"
+	next_case_requested.emit()
 
 
 func _panel(color: Color, border: Color) -> PanelContainer:
@@ -787,8 +771,8 @@ func _panel(color: Color, border: Color) -> PanelContainer:
 	style.corner_radius_bottom_left = 2
 	style.corner_radius_bottom_right = 2
 	style.shadow_color = Color("00000099")
-	style.shadow_size = 9
-	style.shadow_offset = Vector2(2, 4)
+	style.shadow_size = 3
+	style.shadow_offset = Vector2(0, 2)
 	panel.add_theme_stylebox_override("panel", style)
 	return panel
 
@@ -831,27 +815,27 @@ func _make_theme() -> Theme:
 	result.set_color("font_color", "OptionButton", INK)
 	result.set_color("default_color", "RichTextLabel", INK)
 	var button := StyleBoxFlat.new()
-	button.bg_color = Color("252216ee")
-	button.border_color = Color("666047")
+	button.bg_color = Color("172126ee")
+	button.border_color = LINE
 	for side: int in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
 		button.set_border_width(side, 1)
 	button.set_content_margin_all(6)
 	result.set_stylebox("normal", "Button", button)
 	result.set_stylebox("normal", "OptionButton", button)
 	var hover := button.duplicate() as StyleBoxFlat
-	hover.bg_color = Color("38321d")
+	hover.bg_color = Color("223139")
 	hover.border_color = AMBER
 	result.set_stylebox("hover", "Button", hover)
 	result.set_stylebox("pressed", "Button", hover)
 	result.set_stylebox("hover", "OptionButton", hover)
 	result.set_stylebox("pressed", "OptionButton", hover)
 	var disabled := button.duplicate() as StyleBoxFlat
-	disabled.bg_color = Color("161610bb")
-	disabled.border_color = Color("3e3c31")
+	disabled.bg_color = Color("101619bb")
+	disabled.border_color = Color("2c373c")
 	result.set_stylebox("disabled", "Button", disabled)
 	var input_style := StyleBoxFlat.new()
-	input_style.bg_color = Color("060806f2")
-	input_style.border_color = Color("777054")
+	input_style.bg_color = Color("071014f5")
+	input_style.border_color = LINE
 	for side: int in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
 		input_style.set_border_width(side, 1)
 	input_style.set_content_margin_all(8)
@@ -866,18 +850,10 @@ func _make_analog_material() -> ShaderMaterial:
 	var shader := Shader.new()
 	shader.code = """
 		shader_type canvas_item;
-
-		float hash(vec2 p) {
-			return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
-		}
-
 		void fragment() {
 			vec2 uv = UV;
-			float edge = smoothstep(0.34, 0.72, distance(uv, vec2(0.5)));
-			float scan = step(0.92, fract(uv.y * 360.0)) * 0.025;
-			float grain = (hash(floor(uv * vec2(640.0, 360.0)) + floor(TIME * 12.0)) - 0.5) * 0.035;
-			float dirty = smoothstep(0.84, 1.0, hash(floor(uv * vec2(24.0, 14.0)))) * 0.035;
-			float alpha = clamp(edge * 0.62 + scan + grain + dirty, 0.0, 0.68);
+			float edge = smoothstep(0.36, 0.74, distance(uv, vec2(0.5)));
+			float alpha = clamp(edge * 0.38, 0.0, 0.42);
 			COLOR = vec4(vec3(0.008, 0.009, 0.006), alpha);
 		}
 	"""

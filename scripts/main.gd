@@ -14,11 +14,10 @@ var _dialogue_service: Clause13DialogueService
 func _ready() -> void:
 	_ui = GameUI.new() as Clause13UI
 	add_child(_ui)
-	_ui.case_selected.connect(_on_case_selected)
 	_ui.player_submitted.connect(_on_player_submitted)
 	_ui.clause_selected.connect(_on_clause_selected)
 	_ui.propose_requested.connect(_on_propose_requested)
-	_ui.sign_requested.connect(_on_sign_requested)
+	_ui.verdict_requested.connect(_on_verdict_requested)
 	_ui.restart_requested.connect(_on_restart_requested)
 	_ui.next_case_requested.connect(_on_next_case_requested)
 	_dialogue_service = DialogueService.new() as Clause13DialogueService
@@ -45,19 +44,12 @@ func _unhandled_key_input(event: InputEvent) -> void:
 func _start_case(index: int) -> void:
 	if _catalog.is_empty():
 		return
-	_current_index = posmod(index, _catalog.size())
+	_current_index = clampi(index, 0, _catalog.size() - 1)
 	var case_id := str(_catalog[_current_index].get("id", ""))
 	_ui.configure_cases(_catalog, case_id)
 	var snapshot := _simulation.start_case(case_id)
 	_ui.render(snapshot)
 	_ui.focus_input()
-
-
-func _on_case_selected(case_id: String) -> void:
-	for index: int in range(_catalog.size()):
-		if str(_catalog[index].get("id", "")) == case_id:
-			_start_case(index)
-			return
 
 
 func _on_player_submitted(text: String) -> void:
@@ -83,8 +75,8 @@ func _on_propose_requested() -> void:
 	_ui.show_result(_simulation.propose_contract())
 
 
-func _on_sign_requested() -> void:
-	_ui.show_result(_simulation.sign_contract())
+func _on_verdict_requested(suspect_is_impostor: bool) -> void:
+	_ui.show_result(_simulation.submit_verdict(suspect_is_impostor))
 
 
 func _on_restart_requested() -> void:
@@ -94,6 +86,9 @@ func _on_restart_requested() -> void:
 
 
 func _on_next_case_requested() -> void:
+	if _current_index + 1 >= _catalog.size():
+		_ui.show_campaign_complete()
+		return
 	_start_case(_current_index + 1)
 
 

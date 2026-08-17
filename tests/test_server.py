@@ -28,7 +28,7 @@ class DialogueServerTests(unittest.TestCase):
             "public_dossier": {"risk_flags": ["所有权偷换"]},
             "authoritative_read": {"required_fact": "只需要进入儿童房。"},
         })
-        self.assertIn("不得宣布契约已经签署", prompt)
+        self.assertIn("不得宣布玩家的身份判断正确", prompt)
         self.assertIn("只需要进入儿童房", prompt)
         self.assertIn("所有权偷换", prompt)
 

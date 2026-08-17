@@ -2,4 +2,4 @@
 .godot/
 __pycache__/
 *.pyc
-
+artifacts/*.png.import

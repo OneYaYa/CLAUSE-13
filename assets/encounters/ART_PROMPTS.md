@@ -2,6 +2,22 @@
 
 These three original encounter plates were generated with OpenAI's built-in image generation tool. They use the atmosphere and first-person interrogation readability of analog psychological horror, while avoiding copied characters, interface layouts, logos, or exact screens from any existing game.
 
+## Training Inspector
+
+```text
+Use case: stylized-concept
+Asset type: 16:9 in-game first-person tutorial encounter background for the original Godot horror game Clause 13
+Input images: Image 1 is a style, camera, doorway composition, and visual-world reference only; replace its person and weather completely.
+Primary request: Create the game's trustworthy tutorial visitor, a genuine municipal night safety inspector arriving for a scheduled threshold check. She must feel ordinary, credible, calm, and human, with enough subtle atmosphere to belong in the same world without appearing sinister.
+Scene/backdrop: the same type of aging urban apartment foyer viewed from inside through a half-open reinforced door, but tidier and easier to read than Image 1; dry corridor, no rain, no smoke, no supernatural effects. A small working corridor lamp and a clean chalk threshold line are visible.
+Subject: one East Asian woman in her early thirties, practical dark navy municipal work jacket with a plain reflective strip, natural tired face, hair tied back, holding a sealed photo ID badge in one hand and a compact inspection clipboard in the other. Her hands, badge gesture, and face are clearly visible. Neutral patient expression, no glamour pose.
+Style/medium: original hand-painted analog psychological horror illustration with realistic anatomy and restrained dry-brush texture, but cleaner and less grimy than Image 1; subtle film grain only, crisp readable silhouette.
+Composition/framing: match the first-person eye-level 16:9 doorway framing and subject scale of Image 1; visitor centered in the doorway, upper body and hands unobstructed, generous dark negative space on both sides and lower quarter for a clean game UI.
+Lighting/mood: balanced warm interior light and cool corridor fill, reassuring training-simulation mood with only mild unease.
+Color palette: neutral charcoal, desaturated navy, warm cream, restrained cool gray.
+Constraints: no readable text on the badge, no UI, captions, logo, watermark, extra people, rain, fire, blood, weapons, paranormal anatomy, recognizable copyrighted character, or copied game screen.
+```
+
 ## Rain Guest
 
 ```text

@@ -32,6 +32,7 @@ func case_catalog() -> Array[Dictionary]:
 		output.append({
 			"id": str(configured.get("id", "")),
 			"number": int(configured.get("number", output.size() + 1)),
+			"is_tutorial": bool(configured.get("is_tutorial", false)),
 			"title": str(configured.get("title", "未命名案件")),
 			"subtitle": str(configured.get("subtitle", "")),
 			"estimated_minutes": int(configured.get("estimated_minutes", 8)),
@@ -58,6 +59,8 @@ func start_case(case_id: String) -> Dictionary:
 		"evidence": evidence,
 		"selected_clauses": {"scope": "", "price": "", "exit": ""},
 		"contract_accepted": false,
+		"protocol_tested": false,
+		"protocol_summary": "尚未发起验证。",
 		"transcript": [{
 			"speaker": str(npc.get("name", "来客")),
 			"text": str(npc.get("intro", "……公证员，你听得见吗？")),
@@ -99,7 +102,8 @@ func snapshot() -> Dictionary:
 		"campaign_title": str(_campaign.get("title", "CLAUSE 13")),
 		"case_id": str(_case.get("id", "")),
 		"case_number": int(_case.get("number", 0)),
-		"case_total": (_campaign.get("cases", []) as Array).size(),
+		"case_total": _story_case_total(),
+		"is_tutorial": bool(_case.get("is_tutorial", false)),
 		"case_title": str(_case.get("title", "")),
 		"case_subtitle": str(_case.get("subtitle", "")),
 		"estimated_minutes": int(_case.get("estimated_minutes", 8)),
@@ -124,6 +128,8 @@ func snapshot() -> Dictionary:
 		"selected_clause_labels": _selected_clause_labels(selected),
 		"contract_complete": _contract_complete(selected),
 		"contract_accepted": bool(_state.get("contract_accepted", false)),
+		"protocol_tested": bool(_state.get("protocol_tested", false)),
+		"protocol_summary": str(_state.get("protocol_summary", "尚未发起验证。")),
 		"transcript": (_state.get("transcript", []) as Array).duplicate(true),
 		"memory": (_state.get("memory", {}) as Dictionary).duplicate(true),
 		"quick_prompts": (_case.get("quick_prompts", []) as Array).duplicate(true),
@@ -142,7 +148,7 @@ func talk(player_text: String) -> Dictionary:
 
 func dialogue_context(player_text: String) -> Dictionary:
 	var clean := player_text.strip_edges()
-	if clean.is_empty() or not _can_act():
+	if clean.is_empty() or not _can_talk():
 		return {}
 	var local_decision: Dictionary = _agent.decide({
 		"case": _case.duplicate(true),
@@ -194,6 +200,8 @@ func talk_with_reply(player_text: String, reply_override: String = "") -> Dictio
 		return _result(false, "请先输入要对来客说的话。")
 	if not _can_act():
 		return _result(false, "本案已经封存。")
+	if not _can_talk():
+		return _result(false, "核验轮次已经用完，请根据现有档案作出身份判断。")
 	var context := {
 		"case": _case.duplicate(true),
 		"state": _state.duplicate(true),
@@ -231,8 +239,10 @@ func select_clause(slot: String, clause_id: String) -> Dictionary:
 	selected[slot] = clause_id
 	_state["selected_clauses"] = selected
 	_state["contract_accepted"] = false
-	var event := {"type": "clause", "text": "%s已写入草案。" % str(_clause_option(slot, clause_id).get("label", clause_id))}
-	return _commit_event(event, false)
+	_state["protocol_tested"] = false
+	_state["protocol_summary"] = "条件已修改，需要重新发起验证。"
+	var event := {"type": "clause", "text": "%s已写入验证协议。" % str(_clause_option(slot, clause_id).get("label", clause_id))}
+	return _commit_event(event)
 
 
 func propose_contract() -> Dictionary:
@@ -240,7 +250,7 @@ func propose_contract() -> Dictionary:
 		return _result(false, "本案已经封存。")
 	var selected: Dictionary = _state.get("selected_clauses", {}) as Dictionary
 	if not _contract_complete(selected):
-		return _result(false, "契约还缺少条款：进入范围、交换代价和离开条件必须全部填写。")
+		return _result(false, "验证协议还缺条件：范围、代价和离场必须全部选择。")
 	_advance_turn(5)
 	var acceptance: Dictionary = _case.get("acceptance", {}) as Dictionary
 	var score := 0
@@ -250,48 +260,49 @@ func propose_contract() -> Dictionary:
 	score += floori(float(trust - 40) / 5.0)
 	var accepted := trust >= int(acceptance.get("min_trust", 35)) and score >= int(acceptance.get("threshold", 3))
 	_state["contract_accepted"] = accepted
+	_state["protocol_tested"] = true
+	var aligned := 0
+	var safe_contract: Dictionary = _case.get("safe_contract", {}) as Dictionary
+	for slot: String in CLAUSE_SLOTS:
+		if str(selected.get(slot, "")) == str(safe_contract.get(slot, "")):
+			aligned += 1
+	_state["protocol_summary"] = "%d / 3 项与已知证据一致；来客%s这些条件。" % [aligned, "接受" if accepted else "拒绝"]
 	var npc: Dictionary = _case.get("npc", {}) as Dictionary
 	var reply := str(acceptance.get("accepted_reply", "这些字句，我接受。可以签了。")) if accepted else str(acceptance.get("rejected_reply", "不。你给我的太少，限制却太多。重新谈。"))
-	_append_transcript("你", "我提出这份三项契约。", "player")
+	_append_transcript("你", "我发起这份三项验证协议。", "player")
 	_append_transcript(str(npc.get("name", "来客")), reply, "npc")
-	var event := {"type": "proposal", "text": reply, "accepted": accepted, "score": score}
+	var event := {"type": "protocol", "text": reply, "accepted": accepted, "aligned": aligned}
 	return _commit_event(event)
 
 
-func sign_contract() -> Dictionary:
+func submit_verdict(suspect_is_impostor: bool) -> Dictionary:
 	if not _can_act():
 		return _result(false, "本案已经封存。")
-	if not bool(_state.get("contract_accepted", false)):
-		return _result(false, "来客尚未接受当前草案；先提出条款并取得同意。")
-	var selected: Dictionary = _state.get("selected_clauses", {}) as Dictionary
-	var safe_contract: Dictionary = _case.get("safe_contract", {}) as Dictionary
-	var forbidden: Array = _case.get("forbidden", []) as Array
-	var breached := false
-	for raw: Variant in forbidden:
-		var rule := raw as Dictionary
-		if str(selected.get(str(rule.get("slot", "")), "")) == str(rule.get("id", "")):
-			breached = true
-			break
-	var exact_safe := true
-	for slot: String in CLAUSE_SLOTS:
-		if str(selected.get(slot, "")) != str(safe_contract.get(slot, "")):
-			exact_safe = false
-			break
-	var outcome := "failure" if breached else "success" if exact_safe else "costly_success"
-	var endings: Dictionary = _case.get("endings", {}) as Dictionary
-	var ending: Dictionary = endings.get(outcome, {}) as Dictionary
-	_state["outcome"] = outcome
-	_state["ending_reason"] = "breach" if breached else "airtight_contract" if exact_safe else "loophole_contained"
+	if int(_state.get("turn", 0)) < 1:
+		return _result(false, "至少完成一次核验对话，再作出身份判断。")
+	if bool(_case.get("is_tutorial", false)) and not bool(_state.get("protocol_tested", false)):
+		return _result(false, "教学关需要先填写并发起一次验证协议，理解它如何测试口供。")
+	var actual_is_impostor := bool(_case.get("is_impostor", false))
+	var correct := suspect_is_impostor == actual_is_impostor
+	var outcome := "success" if correct else "failure"
+	var actual_label := "伪人 / 冒名者" if actual_is_impostor else "可信来客"
+	var guess_label := "伪人 / 冒名者" if suspect_is_impostor else "可信来客"
 	_state["is_terminal"] = true
+	_state["outcome"] = outcome
+	_state["ending_reason"] = "correct_verdict" if correct else "wrong_verdict"
 	_state["debrief"] = {
-		"title": str(ending.get("title", "案件封存")),
-		"body": str(ending.get("body", "契约已执行。")),
-		"grade": "S" if exact_safe else "B" if not breached else "F",
-		"contract": _selected_clause_labels(selected),
+		"title": "判断正确" if correct else "判断错误",
+		"body": str(_case.get("verdict_explanation", "身份核验已经结束。")),
+		"grade": "PASS" if correct else "RETRY",
+		"correct": correct,
+		"actual_label": actual_label,
+		"guess_label": guess_label,
+		"protocol_tested": bool(_state.get("protocol_tested", false)),
+		"protocol_summary": str(_state.get("protocol_summary", "未使用验证协议。")),
 		"trust": int(_state.get("trust", 0)),
 		"turns": int(_state.get("turn", 0)),
 	}
-	var event := {"type": "ending", "text": str(ending.get("body", "契约已执行。")), "outcome": outcome}
+	var event := {"type": "verdict", "text": str(_state["debrief"].get("body", "")), "outcome": outcome, "correct": correct}
 	return _commit_event(event)
 
 
@@ -324,15 +335,12 @@ func _load_campaign() -> bool:
 
 
 func _advance_turn(ward_cost: int) -> void:
-	_state["turn"] = int(_state.get("turn", 0)) + 1
+	_state["turn"] = mini(int(_case.get("max_turns", 10)), int(_state.get("turn", 0)) + 1)
 	_state["ward"] = maxi(0, int(_state.get("ward", 0)) - ward_cost - int(_state.get("pressure", 0)) / 35)
 
 
-func _commit_event(event: Dictionary, check_failure: bool = true) -> Dictionary:
+func _commit_event(event: Dictionary) -> Dictionary:
 	_state["last_event"] = event.duplicate(true)
-	if check_failure and not bool(_state.get("is_terminal", false)):
-		if int(_state.get("ward", 0)) <= 0 or int(_state.get("turn", 0)) >= int(_case.get("max_turns", 10)):
-			_finish_failure("ward_broken" if int(_state.get("ward", 0)) <= 0 else "deadline")
 	var view := snapshot()
 	var result := _result(true, str(event.get("text", "")))
 	result["event"] = event.duplicate(true)
@@ -342,22 +350,6 @@ func _commit_event(event: Dictionary, check_failure: bool = true) -> Dictionary:
 	if bool(_state.get("is_terminal", false)):
 		case_ended.emit(str(_state.get("outcome", "failure")), view)
 	return result
-
-
-func _finish_failure(reason: String) -> void:
-	var endings: Dictionary = _case.get("endings", {}) as Dictionary
-	var ending: Dictionary = endings.get("failure", {}) as Dictionary
-	_state["outcome"] = "failure"
-	_state["ending_reason"] = reason
-	_state["is_terminal"] = true
-	_state["debrief"] = {
-		"title": str(ending.get("title", "封印失效")),
-		"body": str(ending.get("body", "谈判时间耗尽，门槛封印失效。")),
-		"grade": "F",
-		"contract": _selected_clause_labels(_state.get("selected_clauses", {}) as Dictionary),
-		"trust": int(_state.get("trust", 0)),
-		"turns": int(_state.get("turn", 0)),
-	}
 
 
 func _remember_player_line(text: String, decision: Dictionary) -> void:
@@ -474,6 +466,10 @@ func _can_act() -> bool:
 	return not _state.is_empty() and not bool(_state.get("is_terminal", false))
 
 
+func _can_talk() -> bool:
+	return _can_act() and int(_state.get("turn", 0)) < int(_case.get("max_turns", 10))
+
+
 func _mood() -> String:
 	var pressure := int(_state.get("pressure", 0))
 	var trust := int(_state.get("trust", 0))
@@ -488,16 +484,26 @@ func _mood() -> String:
 
 func _guidance() -> String:
 	if bool(_state.get("is_terminal", false)):
-		return "本案已经封存；可复盘或进入下一案。"
+		return "身份判断已经封存。"
 	var revealed: Array = _state.get("revealed_fact_ids", []) as Array
 	var selected: Dictionary = _state.get("selected_clauses", {}) as Dictionary
+	if not _can_talk():
+		return "核验轮次结束。根据档案与证据，判断对方是可信来客还是伪人。"
 	if revealed.size() < 2:
-		return "先问身份、来意、规则或代价。来客只有在信任你时才会说出关键细节。"
+		return "先问身份与来意，并把回答和档案记录交叉核验。"
 	if not _contract_complete(selected):
-		return "根据证据填写三项条款。最容易被接受的条件，往往不是最安全的条件。"
-	if not bool(_state.get("contract_accepted", false)):
-		return "提出草案。如果对方拒绝，继续谈判提升信任，或修改对它更有吸引力的条款。"
-	return "来客已口头接受。签署后条款会立刻成为世界规则，无法撤回。"
+		return "已有关键证据。可直接判断，也可用验证协议再测试一次口供。"
+	if not bool(_state.get("protocol_tested", false)):
+		return "三项条件已填写。发起验证，观察来客是否愿意接受客观限制。"
+	return "验证结果只是线索；最终胜负只看你的身份判断是否正确。"
+
+
+func _story_case_total() -> int:
+	var total := 0
+	for raw: Variant in _campaign.get("cases", []) as Array:
+		if not bool((raw as Dictionary).get("is_tutorial", false)):
+			total += 1
+	return total
 
 
 func _result(ok: bool, message: String) -> Dictionary:

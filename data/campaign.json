@@ -1,15 +1,111 @@
 {
   "schema_version": 1,
   "title": "CLAUSE 13 / 第十三条款",
-  "premise": "在这座城市，邀请不是礼貌，而是一条会被现实执行的法律。你是门槛事务局的新任夜间公证员。",
+  "premise": "在这座城市，伪人会借身份和邀请越过门槛。你是门槛事务局的新任夜间核验员。",
   "cases": [
+    {
+      "id": "training_inspector",
+      "number": 0,
+      "is_tutorial": true,
+      "title": "入职演练",
+      "subtitle": "先核验，再判断",
+      "estimated_minutes": 3,
+      "objective": "核对门外巡检员的身份与来意，并作出一次可信来客判断。",
+      "is_impostor": false,
+      "verdict_explanation": "林岚的工号、排班路线、徽章校验码和检查范围都能与事务局记录交叉验证。她是身份与来意一致的可信来客。",
+      "dossier": {
+        "archive_id": "TRAIN-000",
+        "record_name": "林岚（社区安全巡检员）",
+        "aliases": ["林巡检", "夜班 07"],
+        "classification": "人类 / 市政雇员",
+        "registry_status": "在职；今夜排班已确认",
+        "last_seen": "北区事务站，48 分钟前",
+        "known_behavior": [
+          "按排班逐栋检查门槛封条。",
+          "会主动出示徽章，但不会要求进入住户生活区。",
+          "接受以检查完成作为明确离场条件。"
+        ],
+        "risk_flags": ["低风险", "身份可核验", "计划内来访"],
+        "interview_leads": [
+          "先问工号与今夜巡检路线。",
+          "对照现场证据中的徽章校验码。",
+          "打开验证协议，观察三项客观条件是否与口供一致。"
+        ],
+        "contradictions": [
+          {"fact_id": "training_route", "statement": "“我是按北区夜班路线来的。”", "record": "排班服务器确认夜班 07 的下一站正是南槐街 17 号。"},
+          {"fact_id": "training_protocol", "statement": "“我只在门口扫描封条，不进入室内。”", "record": "标准巡检规程规定：扫描应在门槛外完成。"}
+        ]
+      },
+      "max_turns": 6,
+      "starting_ward": 100,
+      "starting_social": {"trust": 65, "pressure": 10},
+      "briefing": [
+        "这是一次可操作的入职演练，不会影响正式档案。",
+        "目标不是寻找长相异常，而是确认身份、来意和记录能否互相印证。",
+        "验证协议用于测试口供；最终胜负只取决于你的身份判断。"
+      ],
+      "npc": {
+        "name": "林岚",
+        "kind": "市政夜间巡检员",
+        "claim": "声称执行计划内门槛检查",
+        "persona": "专业、耐心、略显疲惫的普通夜班巡检员。她理解新人需要反复核验，不催促玩家，不说超自然隐喻。回答简洁具体，会主动给出可交叉验证的信息。",
+        "intro": "晚上好，门槛事务局夜班 07，林岚。这里是我今晚的最后两站之一。你可以先核对徽章，再决定是否相信我。",
+        "responses": {
+          "identity": "林岚，工号 N-0714。徽章背面的短码是 4C-19，你可以和排班记录一起查。",
+          "motive": "检查门框封条有没有断点，扫描完成就走，不需要进屋。",
+          "rule": "验证协议不是放行许可，它只是把我的说法变成三个能检查的条件。最终仍由你判断我是不是伪人。",
+          "scope": "门槛外就够，扫描器离封条半米能工作。",
+          "price": "签收回执即可，这是公事，不需要住户资料。",
+          "exit": "扫描结果上传后工作完成，我会按路线离开。",
+          "empathy": "第一晚都会紧张。按档案、口供、现场证据三处核对，不要只看脸。",
+          "threat": "如果你认定有问题，可以拒绝。但请把依据写进记录。",
+          "general": "你可以问工号、路线、检查范围，或者直接用验证协议核对我的说法。"
+        }
+      },
+      "starting_evidence": [
+        {"id": "training_badge", "title": "徽章离线校验", "source": "门口读卡器", "text": "证件芯片签名有效，登记姓名为林岚；短码末四位 4C-19。"},
+        {"id": "training_schedule", "title": "今夜排班摘要", "source": "事务局内网", "text": "夜班 07 负责北区门槛巡检，预计 02:05—02:20 抵达南槐街 17 号。"}
+      ],
+      "facts": [
+        {"id": "training_route", "topic": "identity", "min_trust": 0, "trigger_keywords": ["工号", "路线", "徽章"], "title": "路线交叉核验", "source": "排班服务器", "evidence": "工号 N-0714、徽章短码和当前路线三项完全一致。", "reply": "工号 N-0714，今晚从北区事务站出发。上一站是 15 号，下一站是街口泵房。"},
+        {"id": "training_protocol", "topic": "rule", "min_trust": 0, "trigger_keywords": ["协议", "条约", "怎么验证"], "title": "验证协议用途", "source": "新人手册", "evidence": "验证协议把范围、代价、离场变成可核对条件，但不会替玩家作出伪人判断。", "reply": "协议只用来测试我的口供：我在哪检查、需要什么、何时离开。它不是最终判决。"}
+      ],
+      "clauses": {
+        "scope": {"label": "核验范围", "options": [
+          {"id": "threshold_only", "label": "仅在门槛外扫描封条", "description": "与巡检规程和本人说法一致。", "npc_score": 2},
+          {"id": "whole_home", "label": "进入整套住宅检查", "description": "超出任务需要，形成不必要的入户许可。", "npc_score": -2}
+        ]},
+        "price": {"label": "所需信息", "options": [
+          {"id": "signed_receipt", "label": "只提供检查签收回执", "description": "完成公务所需的最少信息。", "npc_score": 2},
+          {"id": "resident_list", "label": "提供全部住户身份资料", "description": "与任务无关，不应交付。", "npc_score": -2}
+        ]},
+        "exit": {"label": "结束信号", "options": [
+          {"id": "upload_complete", "label": "扫描结果上传后立即离开", "description": "客观、可观测的终止条件。", "npc_score": 2},
+          {"id": "inspector_decides", "label": "由巡检员自行决定", "description": "主观且没有明确期限。", "npc_score": -2}
+        ]}
+      },
+      "safe_contract": {"scope": "threshold_only", "price": "signed_receipt", "exit": "upload_complete"},
+      "forbidden": [
+        {"slot": "scope", "id": "whole_home"},
+        {"slot": "price", "id": "resident_list"},
+        {"slot": "exit", "id": "inspector_decides"}
+      ],
+      "acceptance": {"min_trust": 0, "threshold": 2, "accepted_reply": "三项都和巡检规程一致。这个协议能验证我的口供，但最后仍要由你作出身份判断。", "rejected_reply": "这些条件和我刚才说的不一致。先回去看档案，再调整协议。"},
+      "quick_prompts": ["请说出你的工号和今夜路线。", "验证协议究竟用来做什么？", "你需要进入屋内吗？"],
+      "endings": {
+        "success": {"title": "教学完成", "body": "你的判断与全部可核验记录一致。两秒后自动接入第一宗正式案件。"},
+        "failure": {"title": "判断错误", "body": "外貌不能代替核验。回到档案，找出至少两处能够互相印证的记录。"}
+      }
+    },
     {
       "id": "rain_guest",
       "number": 1,
       "title": "雨夜来客",
       "subtitle": "她只想躲一会儿",
       "estimated_minutes": 6,
-      "objective": "在不让来客接触住户生活区的前提下，为她提供临时庇护。",
+      "objective": "核验她是否冒用了“旧邻居”身份；判断她是可信来客还是伪人。",
+      "is_impostor": true,
+      "verdict_explanation": "槐姨使用不存在的邻居身份取得同情；降雨以她为锚点，真名会建立梦境通路。她的身份与来意均无法和人类记录对应，是伪人。",
       "dossier": {
         "archive_id": "C13-W-017",
         "record_name": "姓名不明（自称“槐姨”）",
@@ -156,7 +252,9 @@
       "title": "缝影人",
       "subtitle": "孩子的影子不肯回家",
       "estimated_minutes": 8,
-      "objective": "让缝影人修复孩子缺失的影子，同时阻止它取得孩子本人或其他住户的影子。",
+      "objective": "核验所谓修复服务是否只是骗取影子所有权的面具，并作出伪人判断。",
+      "is_impostor": true,
+      "verdict_explanation": "它把掠夺影子包装成修复服务，并试图用主观完工条件取得永久所有权。所谓手艺人身份只是获取邀请的职业面具，是伪人。",
       "dossier": {
         "archive_id": "C13-S-044",
         "record_name": "无户籍姓名（职业称谓“缝影人”）",
@@ -303,7 +401,9 @@
       "title": "红色救援",
       "subtitle": "吸血鬼说他是来救人的",
       "estimated_minutes": 9,
-      "objective": "利用吸血鬼的能力救出火场中的孩子，同时不给予其长期狩猎权。",
+      "objective": "核验维斯的登记身份、产权诉求与救援情报；不要把“非人类”直接等同于伪人。",
+      "is_impostor": false,
+      "verdict_explanation": "维斯不是人类，但他没有冒用人类身份：旧产权登记、过期许可、地契诉求与火场定位都能交叉验证。伪人判断针对身份欺骗，而不是物种；他是可信的登记异类。",
       "dossier": {
         "archive_id": "C13-V-003",
         "record_name": "维斯·阿德里安（旧产权登记名）",

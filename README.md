@@ -1,8 +1,24 @@
-# CLAUSE 13 / 第十三条款
+<p align="center">
+  <img src="assets/branding/clause13_icon.png" width="180" alt="《第十三条款》游戏图标">
+</p>
+
+<h1 align="center">CLAUSE 13 / 第十三条款</h1>
+
+<p align="center"><strong>别判断它像不像人。查清它是谁。</strong></p>
 
 一个独立的 Godot 4.6 AI NPC 身份核验解谜原型。玩家是门槛事务局的夜间核验员：查阅档案、与门外来客自由对话、交叉验证口供，最后判断对方是“可信来客”还是“伪人 / 冒名者”。
 
 这不是聊天框套皮。NPC 的对白可以自由生成，但证据解锁、核验轮次、验证协议和最终身份答案始终由本地确定性模拟器裁决。
+
+## 宣传片
+
+[![《第十三条款》1080p 游戏宣传片](trailer/clause13_trailer_poster.jpg)](trailer/clause13_trailer_1080p.mp4)
+
+<p align="center">
+  <strong><a href="trailer/clause13_trailer_1080p.mp4">▶ 播放 / 下载 1080p 宣传片</a></strong>
+  ·
+  <a href="trailer/clause13_trailer_zh-CN.srt">中文字幕</a>
+</p>
 
 ![当前原型界面](artifacts/clause13_preview.png)
 

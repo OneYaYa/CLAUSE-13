@@ -1,4 +1,8 @@
 <p align="center">
+  <strong>简体中文</strong> · <a href="README.en.md">English</a>
+</p>
+
+<p align="center">
   <img src="assets/branding/clause13_icon.png" width="180" alt="《第十三条款》游戏图标">
 </p>
 

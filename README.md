@@ -1,111 +1,111 @@
 <p align="center">
-  <strong>简体中文</strong> · <a href="README.en.md">English</a>
+  <a href="README.zh-CN.md">简体中文</a> · <strong>English</strong>
 </p>
 
 <p align="center">
-  <img src="assets/branding/clause13_icon.png" width="180" alt="《第十三条款》游戏图标">
+  <img src="assets/branding/clause13_icon.png" width="180" alt="CLAUSE 13 game icon">
 </p>
 
 <h1 align="center">CLAUSE 13 / 第十三条款</h1>
 
-<p align="center"><strong>别判断它像不像人。查清它是谁。</strong></p>
+<p align="center"><strong>Do not decide whether it looks human. Find out who it is.</strong></p>
 
-一个独立的 Godot 4.6 AI NPC 身份核验解谜原型。玩家是门槛事务局的夜间核验员：查阅档案、与门外来客自由对话、交叉验证口供，最后判断对方是“可信来客”还是“伪人 / 冒名者”。
+CLAUSE 13 is a standalone Godot 4.6 AI-NPC identity-verification puzzle prototype. As the night verifier for the Threshold Affairs Bureau, you inspect records, freely question visitors outside the door, cross-check their testimony, and decide whether each one is a trusted visitor or an impostor.
 
-这不是聊天框套皮。NPC 的对白可以自由生成，但证据解锁、核验轮次、验证协议和最终身份答案始终由本地确定性模拟器裁决。
+This is more than a chat interface. NPC dialogue may be generated freely, but evidence unlocks, verification rounds, protocol results, and the final identity answer are always controlled by a deterministic local simulator.
 
-## 宣传片
+## Trailer
 
-[![《第十三条款》1080p 游戏宣传片](trailer/clause13_trailer_poster.jpg)](trailer/clause13_trailer_1080p.mp4)
+[![CLAUSE 13 1080p gameplay trailer](trailer/clause13_trailer_poster.jpg)](trailer/clause13_trailer_1080p.mp4)
 
 <p align="center">
-  <strong><a href="trailer/clause13_trailer_1080p.mp4">▶ 播放 / 下载 1080p 宣传片</a></strong>
+  <strong><a href="trailer/clause13_trailer_1080p.mp4">▶ Play / download the 1080p trailer</a></strong>
   ·
-  <a href="trailer/clause13_trailer_zh-CN.srt">中文字幕</a>
+  <a href="trailer/clause13_trailer_zh-CN.srt">Chinese subtitles</a>
 </p>
 
-![当前原型界面](artifacts/clause13_preview.png)
+![Current prototype interface](artifacts/clause13_preview.png)
 
-![教学关界面](artifacts/tutorial_preview.png)
+![Tutorial case](artifacts/tutorial_preview.png)
 
-## 已实现
+## Features
 
-- 1 个可操作教学关，通过后自动进入 3 个短案件
-- 自由中文输入、NPC 情绪与跨轮记忆、信任/压迫变化
-- 可查阅的访客档案：身份记录、别名、异常分类、旧案行为、风险标签与建议问法
-- 通过身份、动机、代价、范围、期限等话题解锁可验证证据与档案矛盾
-- 三槽“验证协议”：用范围、代价、离场条件测试口供，只提供线索，不决定胜负
-- 最终只有两个判断：可信来客 / 伪人；判断正确自动进入下一关，错误留在本关复盘
-- 四套原创第一人称门口遭遇场景，使用克制视差和轻量暗角
-- 离线本地人格可直接玩；可选在线模型增强，断线自动降级
-- 版本化 Context Compiler、知识锁硬过滤、事件溯源主观记忆与过期回复拒绝
-- Structured Outputs + 引用/动作白名单校验 + prompt trace
-- Godot 核心 50 项检查、UI 流程 1 项检查、Python 对话服务 5 项检查
+- One playable tutorial followed automatically by three short cases
+- Free-form Chinese input, NPC emotions and cross-turn memory, plus changing trust and pressure
+- Browsable visitor dossiers with identity records, aliases, anomaly class, prior behavior, risk labels, and suggested questions
+- Verifiable evidence and record contradictions unlocked through identity, motive, cost, scope, and deadline topics
+- A three-slot Verification Protocol that tests scope, cost, and exit conditions without deciding the case for you
+- Two final judgments only: trusted visitor or impostor; correct decisions advance, while mistakes keep you in the case for review
+- Four original first-person doorstep scenes with restrained parallax and light vignetting
+- Fully playable offline personalities with optional online model enhancement and automatic fallback
+- Versioned context compilation, hard knowledge locks, event-sourced subjective memory, and stale-response rejection
+- Structured Outputs, citation/action allowlist validation, and prompt traces
+- Automated Godot core, UI-flow, and Python dialogue-service checks
 
-完整的模块边界、数据模型、上下文编译流程、异常处理、测试策略以及可直接用于简历的项目描述，见 [AI NPC 工程设计](AI_NPC_ENGINEERING.md)。
+For module boundaries, data design, context compilation, failure handling, testing strategy, and a portfolio-ready technical overview, see [AI NPC Engineering](AI_NPC_ENGINEERING.md).
 
-## 直接运行
+## Run the Game
 
-用 Godot 4.6 打开本目录的 `project.godot`，按 F6/F5 即可。没有网络或 API Key 时，游戏会自动使用本地人格规则，全部关卡和结局仍可正常完成。
+Open `project.godot` with Godot 4.6 and press F6/F5. With no network connection or API key, the game automatically uses its local personality rules; all cases and endings remain available.
 
-本机也可以从命令行运行：
+From PowerShell:
 
 ```powershell
 & 'C:\path\to\Godot_v4.6.3-stable_win64.exe' --path 'C:\path\to\clause13'
 ```
 
-## 开启在线 AI NPC
+## Optional Online AI NPCs
 
-1. 复制 `.env.example` 为 `.env`。
-2. 在 `.env` 中填写 `OPENAI_API_KEY`；密钥只保存在本机 Python 服务，不会写入 Godot 客户端。
-3. 启动服务：
+1. Copy `.env.example` to `.env`.
+2. Add `OPENAI_API_KEY`. The key stays in the local Python service and is never written to the Godot client.
+3. Start the service:
 
 ```powershell
 .\start_dialogue_server.ps1
 ```
 
-4. 再启动 Godot。右下角出现 `AI: ONLINE · WORLD: LOCAL` 即表示人格增强已连接。
+4. Start Godot. `AI: ONLINE · WORLD: LOCAL` in the lower-right corner confirms that personality enhancement is connected.
 
-服务使用 OpenAI Responses API 的严格 JSON Schema 输出。默认模型在 `.env.example` 中配置，可用 `CLAUSE13_MODEL` 替换。服务不可用时，当前回合会安全降级到本地人格；模型永远不能修改证据、协议结果或身份答案。
+The service uses the OpenAI Responses API with a strict JSON Schema. Configure the default model in `.env.example` or override it with `CLAUSE13_MODEL`. If the service is unavailable, the current turn safely falls back to the local personality. The model can never modify evidence, protocol results, or identity answers.
 
-## 玩法
+## How to Play
 
-1. 阅读左侧人物档案；在“人物档案 / 现场证据 / 说法核验”之间切换。
-2. 在中间自由输入问题，把口供与排班、旧案、传感器等记录交叉验证。
-3. 有疑问时使用右侧“验证协议”，观察对方是否接受三项客观条件。
-4. 协议结果只是线索；点击“可信来客”或“伪人 / 冒名者”提交最终判断。
-5. 判断正确后自动进入下一关；判断错误则留在本关重新审问。
+1. Read the dossier on the left and switch among the dossier, scene evidence, and testimony checks.
+2. Ask free-form questions and cross-check answers against schedules, old cases, sensors, and other records.
+3. When in doubt, run the Verification Protocol on the right and observe whether the visitor accepts its three objective conditions.
+4. Treat the protocol as evidence, not a verdict. Submit either `Trusted Visitor` or `Impostor`.
+5. A correct judgment advances to the next case; an incorrect one keeps the case open for more questioning.
 
-“伪人”指用冒名、模仿或虚假来意骗取邀请的替代者，不等于一切非人类。合法登记的异类也可能是可信来客。
+In this setting, an impostor is a substitute who uses a stolen identity, mimicry, or false intent to obtain an invitation. It does not mean every non-human visitor is hostile; legally registered anomalous beings can still be trusted visitors.
 
-## 测试
+## Tests
 
 ```powershell
-# Godot 确定性核心
+# Deterministic Godot core
 godot --headless --path . res://tests/case_simulation_test.tscn
 
-# Python AI 服务契约
+# Python AI-service contract
 python -m unittest discover -s tests -p 'test_*.py' -v
 ```
 
-生成一张 1280×720 界面预览：
+Generate a 1280×720 interface preview:
 
 ```powershell
 godot --path . --resolution 1280x720 res://tools/capture_preview.tscn
 ```
 
-## 目录
+## Project Structure
 
 ```text
 clause13/
-├─ data/campaign.json                 # 教学 + 三关内容、私有身份与验证条件
-├─ scenes/main.tscn                   # 入口场景
-├─ scripts/core/case_simulation.gd    # 唯一权威世界状态
-├─ scripts/services/                  # 本地人格、上下文编译与可选在线服务
-├─ assets/encounters/                 # 四关原创访客场景与美术提示词
-├─ scripts/ui/                        # 第一人称审问 UI 与模拟影像效果
-├─ server.py                          # 可选 Responses API 对话边车
-├─ tests/                             # Godot / Python 自动化检查
-├─ DESIGN.md                          # 背景、研究结论与扩展路线
-└─ AI_NPC_ENGINEERING.md              # 简历/面试可展开的 AI NPC 工程设计
+├─ data/campaign.json                 # Tutorial, three cases, private identities, conditions
+├─ scenes/main.tscn                   # Entry scene
+├─ scripts/core/case_simulation.gd    # Authoritative world state
+├─ scripts/services/                  # Local personalities, context compiler, online service
+├─ assets/encounters/                 # Original visitor scenes and art prompts
+├─ scripts/ui/                        # First-person interview UI and simulated video
+├─ server.py                          # Optional Responses API sidecar
+├─ tests/                             # Godot and Python checks
+├─ DESIGN.md                          # Background, research, and extension roadmap
+└─ AI_NPC_ENGINEERING.md              # Detailed AI-NPC engineering design
 ```
